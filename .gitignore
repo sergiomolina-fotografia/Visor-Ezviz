@@ -10,3 +10,9 @@ config.local.js
 # Archivos temporales del sistema
 .DS_Store
 Thumbs.db
+
+# Entorno virtual Python
+.venv/
+__pycache__/
+*.local.json
+server/_hls/

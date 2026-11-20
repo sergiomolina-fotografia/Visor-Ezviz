@@ -6,8 +6,16 @@
     accessToken: "PEGAR_ACCESS_TOKEN_AQUI",
     areaDomain: "https://isaopen.ezvizlife.com",
     liveUrl: "ezopen://CODIGO_VERIFICACION@open.ys7.com/SERIAL_CAMARA/1.live",
-    recUrl: "ezopen://CODIGO_VERIFICACION@open.ys7.com/SERIAL_CAMARA/1.rec?begin=20261119120000&end=20261119120500"
+    recUrl: "ezopen://CODIGO_VERIFICACION@open.ys7.com/SERIAL_CAMARA/1.rec?begin=20261119120000&end=20261119120500",
+    hlsUrl: "http://192.168.18.29:8080/api/stream/BE3871590/live.m3u8"
   };
+  if (window.EZVIZ_LOCAL_CONFIG) {
+    for (var k in window.EZVIZ_LOCAL_CONFIG) {
+      if (Object.prototype.hasOwnProperty.call(window.EZVIZ_LOCAL_CONFIG, k)) {
+        CONFIG[k] = window.EZVIZ_LOCAL_CONFIG[k];
+      }
+    }
+  }
 
   var player = null;
   var buttons = [];
@@ -133,6 +141,38 @@
     });
   }
 
+  function startNativeHls(url) {
+    stopPlayer(function () {
+      appendLog("ok", ["Iniciando HLS nativo (Vía B)..."]);
+      console.log("HLS URL:", url);
+      var container = document.getElementById("video-container");
+      container.innerHTML = "";
+      var video = document.createElement("video");
+      video.style.width = "1280px";
+      video.style.height = "720px";
+      video.style.background = "#000";
+      video.autoplay = true;
+      video.controls = true;
+      video.playsInline = true;
+      video.addEventListener("loadedmetadata", function () {
+        appendLog("ok", ["HLS metadata cargada:", video.videoWidth + "x" + video.videoHeight]);
+      });
+      video.addEventListener("playing", function () {
+        appendLog("ok", ["Reproduciendo HLS nativo por hardware!"]);
+      });
+      video.addEventListener("error", function () {
+        var err = video.error;
+        console.error("Video error:", err ? err.code + " " + err.message : "desconocido");
+      });
+      video.src = url;
+      container.appendChild(video);
+      var p = video.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(function (e) { console.warn("Autoplay play() warning:", e.message); });
+      }
+    });
+  }
+
   // === 5. NAVEGACIÓN CON CONTROL REMOTO ===
   function updateFocus() {
     for (var i = 0; i < buttons.length; i++) {
@@ -144,6 +184,7 @@
   function executeAction(action) {
     if (action === "live") startStream(CONFIG.liveUrl, "EN VIVO");
     else if (action === "rec") startStream(CONFIG.recUrl, "microSD");
+    else if (action === "hls") startNativeHls(CONFIG.hlsUrl);
     else if (action === "stop") stopPlayer(function () { console.log("Reproductor detenido."); });
     else if (action === "clear") { logPanel.innerHTML = ""; appendLog("ok", ["Log limpiado."]); }
   }
@@ -157,6 +198,7 @@
     else if (code === 50) { executeAction("rec"); }
     else if (code === 51) { executeAction("stop"); }
     else if (code === 52) { executeAction("clear"); }
+    else if (code === 53) { executeAction("hls"); }
     else if (code === 461) {
       stopPlayer(function () {
         if (window.webOSSystem && window.webOSSystem.platformBack) window.webOSSystem.platformBack();
