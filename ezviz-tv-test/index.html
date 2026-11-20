@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>EZVIZ TV Test - webOS 6.0</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 1920px; height: 1080px; overflow: hidden;
+      background: #0d1117; color: #e6edf3; font-family: sans-serif;
+      display: flex; flex-direction: column;
+    }
+    header {
+      height: 80px; padding: 0 32px; background: #161b22;
+      border-bottom: 2px solid #30363d; display: flex;
+      align-items: center; justify-content: space-between;
+    }
+    header h1 { font-size: 28px; font-weight: 600; }
+    #status-bar { font-size: 20px; color: #58a6ff; }
+    main { flex: 1; display: flex; padding: 24px 32px; gap: 24px; height: 900px; }
+    #player-section { flex: 0 0 1280px; display: flex; flex-direction: column; gap: 16px; }
+    #video-container { width: 1280px; height: 720px; background: #000; border: 2px solid #30363d; }
+    #controls { display: flex; gap: 16px; }
+    button {
+      padding: 16px 24px; font-size: 22px; background: #21262d;
+      color: #e6edf3; border: 3px solid #30363d; border-radius: 8px; cursor: pointer;
+    }
+    button.focused, button:focus { background: #1f6feb; border-color: #ffffff; outline: none; }
+    #log-panel {
+      flex: 1; background: #010409; border: 2px solid #30363d; padding: 16px;
+      overflow-y: auto; font-family: monospace; font-size: 16px;
+      line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+    }
+    .log-info { color: #e6edf3; } .log-warn { color: #d29922; }
+    .log-error { color: #f85149; } .log-ok { color: #3fb950; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>EZVIZ TV — Test Chromium 79</h1>
+    <div id="status-bar">Listo | RAM: -- MB</div>
+  </header>
+  <main>
+    <section id="player-section">
+      <div id="video-container"></div>
+      <div id="controls">
+        <button id="btn-live" data-action="live">[1] En vivo (EZOPEN)</button>
+        <button id="btn-rec" data-action="rec">[2] microSD (.rec)</button>
+        <button id="btn-stop" data-action="stop">[3] Detener</button>
+        <button id="btn-clear" data-action="clear">[4] Limpiar log</button>
+      </div>
+    </section>
+    <aside id="log-panel"></aside>
+  </main>
+  <script src="lib/ezuikit.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

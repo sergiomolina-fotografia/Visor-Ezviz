@@ -1,0 +1,13 @@
+{
+  "id": "com.manuel.ezviztv.test",
+  "version": "0.1.0",
+  "vendor": "EZVIZ TV Test",
+  "type": "web",
+  "main": "index.html",
+  "title": "EZVIZ TV Test",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "resolution": "1920x1080",
+  "bgColor": "#0d1117",
+  "disableBackHistoryAPI": true
+}

@@ -1,0 +1,12 @@
+# Paquetes compilados y dependencias
+*.ipk
+*.tgz
+node_modules/
+
+# Archivos de configuración local con credenciales
+config.local.js
+.env
+
+# Archivos temporales del sistema
+.DS_Store
+Thumbs.db
