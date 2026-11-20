@@ -7,7 +7,8 @@
     areaDomain: "https://isaopen.ezvizlife.com",
     liveUrl: "ezopen://CODIGO_VERIFICACION@open.ys7.com/SERIAL_CAMARA/1.live",
     recUrl: "ezopen://CODIGO_VERIFICACION@open.ys7.com/SERIAL_CAMARA/1.rec?begin=20261119120000&end=20261119120500",
-    hlsUrl: "http://192.168.18.29:8080/api/stream/BE3871590/live.m3u8"
+    cam1HlsUrl: "http://192.168.18.29:8080/api/stream/BE3871590/live.m3u8",
+    cam2HlsUrl: "http://192.168.18.29:8080/api/stream/J92500664/live.m3u8"
   };
   if (window.EZVIZ_LOCAL_CONFIG) {
     for (var k in window.EZVIZ_LOCAL_CONFIG) {
@@ -184,7 +185,8 @@
   function executeAction(action) {
     if (action === "live") startStream(CONFIG.liveUrl, "EN VIVO");
     else if (action === "rec") startStream(CONFIG.recUrl, "microSD");
-    else if (action === "hls") startNativeHls(CONFIG.hlsUrl);
+    else if (action === "cam1") startNativeHls(CONFIG.cam1HlsUrl);
+    else if (action === "cam2") startNativeHls(CONFIG.cam2HlsUrl);
     else if (action === "stop") stopPlayer(function () { console.log("Reproductor detenido."); });
     else if (action === "clear") { logPanel.innerHTML = ""; appendLog("ok", ["Log limpiado."]); }
   }
@@ -198,7 +200,8 @@
     else if (code === 50) { executeAction("rec"); }
     else if (code === 51) { executeAction("stop"); }
     else if (code === 52) { executeAction("clear"); }
-    else if (code === 53) { executeAction("hls"); }
+    else if (code === 53) { executeAction("cam1"); }
+    else if (code === 54) { executeAction("cam2"); }
     else if (code === 461) {
       stopPlayer(function () {
         if (window.webOSSystem && window.webOSSystem.platformBack) window.webOSSystem.platformBack();
