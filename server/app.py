@@ -79,7 +79,10 @@ def _stop_ffmpeg(serial: str) -> None:
             proc.kill()
 
 
-def _ensure_hls_stream(serial: str, rtsp_url: str) -> Path:
+_playback_active_ranges: dict[str, str] = {}
+
+
+def _ensure_hls_stream(serial: str, rtsp_url: str, is_playback: bool = False) -> Path:
     cam_dir = HLS_ROOT / serial
     m3u8_path = cam_dir / "live.m3u8"
 
@@ -91,6 +94,9 @@ def _ensure_hls_stream(serial: str, rtsp_url: str) -> Path:
     if cam_dir.exists():
         shutil.rmtree(cam_dir, ignore_errors=True)
     cam_dir.mkdir(parents=True, exist_ok=True)
+
+    hls_flags = [] if is_playback else ["-hls_flags", "delete_segments"]
+    hls_list_size = "0" if is_playback else "5"
 
     cmd = [
         "ffmpeg",
@@ -120,9 +126,8 @@ def _ensure_hls_stream(serial: str, rtsp_url: str) -> Path:
         "-hls_time",
         "2",
         "-hls_list_size",
-        "5",
-        "-hls_flags",
-        "delete_segments",
+        hls_list_size,
+    ] + hls_flags + [
         str(m3u8_path),
     ]
     creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
@@ -228,12 +233,7 @@ def get_hls_playlist(serial: str) -> FileResponse:
     )
 
 
-@app.get("/api/stream/{serial}/playback.m3u8")
-def get_playback_playlist(
-    serial: str,
-    begin: str = Query(..., description="Inicio en formato ISO o YYYYMMDDTHHmmssZ"),
-    end: str = Query(..., description="Fin en formato ISO o YYYYMMDDTHHmmssZ"),
-) -> FileResponse:
+def _handle_playback(serial: str, begin: str, end: str) -> Path:
     local_cfg = _load_local_codes()
     cam_cfg = local_cfg.get(serial)
     if not cam_cfg:
@@ -254,12 +254,56 @@ def get_playback_playlist(
     if not fmt_end.endswith("Z"):
         fmt_end += "Z"
         
-    rtsp_url = f"rtsp://admin:{code}@{ip}:554/Streaming/tracks/101?starttime={fmt_begin}&endtime={fmt_end}"
     stream_key = f"{serial}_playback"
-    m3u8_path = _ensure_hls_stream(stream_key, rtsp_url)
+    range_id = f"{fmt_begin}_{fmt_end}"
+
+    # Si cambió el intervalo de grabación seleccionado, reiniciar proceso ffmpeg
+    if _playback_active_ranges.get(serial) != range_id:
+        _stop_ffmpeg(stream_key)
+        _playback_active_ranges[serial] = range_id
+
+    rtsp_url = f"rtsp://admin:{code}@{ip}:554/Streaming/tracks/101?starttime={fmt_begin}&endtime={fmt_end}"
+    return _ensure_hls_stream(stream_key, rtsp_url, is_playback=True)
+
+
+@app.get("/api/stream/{serial}/playback.m3u8")
+def get_playback_playlist_legacy(
+    serial: str,
+    begin: str = Query(..., description="Inicio en formato ISO o YYYYMMDDTHHmmssZ"),
+    end: str = Query(..., description="Fin en formato ISO o YYYYMMDDTHHmmssZ"),
+) -> FileResponse:
+    m3u8_path = _handle_playback(serial, begin, end)
     return FileResponse(
         m3u8_path,
         media_type="application/vnd.apple.mpegurl",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/api/stream/{serial}/playback/live.m3u8")
+def get_playback_playlist(
+    serial: str,
+    begin: str = Query(..., description="Inicio en formato ISO o YYYYMMDDTHHmmssZ"),
+    end: str = Query(..., description="Fin en formato ISO o YYYYMMDDTHHmmssZ"),
+) -> FileResponse:
+    m3u8_path = _handle_playback(serial, begin, end)
+    return FileResponse(
+        m3u8_path,
+        media_type="application/vnd.apple.mpegurl",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/api/stream/{serial}/playback/{segment}")
+def get_playback_segment(serial: str, segment: str) -> FileResponse:
+    if "/" in segment or "\\" in segment or ".." in segment:
+        raise HTTPException(status_code=400, detail="Nombre de segmento inválido")
+    seg_path = HLS_ROOT / f"{serial}_playback" / segment
+    if not seg_path.exists():
+        raise HTTPException(status_code=404, detail="Segmento de grabación no encontrado")
+    return FileResponse(
+        seg_path,
+        media_type="video/mp2t",
         headers={"Cache-Control": "no-cache"},
     )
 
@@ -270,7 +314,11 @@ def get_hls_segment(serial: str, segment: str) -> FileResponse:
         raise HTTPException(status_code=400, detail="Nombre de segmento inválido")
     seg_path = HLS_ROOT / serial / segment
     if not seg_path.exists():
-        raise HTTPException(status_code=404, detail="Segmento no encontrado")
+        playback_path = HLS_ROOT / f"{serial}_playback" / segment
+        if playback_path.exists():
+            seg_path = playback_path
+        else:
+            raise HTTPException(status_code=404, detail="Segmento no encontrado")
     return FileResponse(
         seg_path,
         media_type="video/mp2t",
@@ -282,4 +330,5 @@ def get_hls_segment(serial: str, segment: str) -> FileResponse:
 def stop_stream(serial: str) -> JSONResponse:
     _stop_ffmpeg(serial)
     _stop_ffmpeg(f"{serial}_playback")
+    _playback_active_ranges.pop(serial, None)
     return JSONResponse({"stopped": serial})

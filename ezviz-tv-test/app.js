@@ -100,14 +100,21 @@
       });
       video.addEventListener("error", function () {
         var err = video.error;
-        console.error("Error en reproductor:", err ? err.code + " " + err.message : "desconocido");
+        var msg = err ? "Código " + err.code + " (" + (err.message || "Fallo decodificación/red") + ")" : "Error de red/servidor";
+        appendLog("err", ["Error en reproductor:", msg]);
+        if (currentCam === CONFIG.cam2Serial && url.indexOf("playback") !== -1) {
+          appendLog("warn", ["Nota: El modelo C3TN no expone RTSP directo para microSD."]);
+        }
       });
 
       video.src = url;
       container.appendChild(video);
       var p = video.play();
       if (p && typeof p.catch === "function") {
-        p.catch(function (e) { console.warn("Aviso play():", e.message); });
+        p.catch(function (e) {
+          console.warn("Aviso play():", e.message);
+          appendLog("warn", ["Aviso reproducción:", e.message]);
+        });
       }
     });
   }
@@ -194,11 +201,15 @@
   }
 
   function playRecordClip(rec) {
-    appendLog("ok", ["Reproduciendo grabación: " + rec.begin + " -> " + rec.end]);
-    var b = rec.begin.replace(/[-:]/g, "") + (rec.begin.endsWith("Z") ? "" : "Z");
-    var e = rec.end.replace(/[-:]/g, "") + (rec.end.endsWith("Z") ? "" : "Z");
-    var url = CONFIG.serverUrl + "/api/stream/" + currentCam + "/playback.m3u8?begin=" + b + "&end=" + e;
-    startNativeHls(url, "microSD " + currentCamName + " " + rec.begin);
+    var tStart = rec.begin.split("T")[1] || rec.begin;
+    var tEnd = rec.end.split("T")[1] || rec.end;
+    appendLog("ok", ["Cargando grabación: " + tStart + " a " + tEnd]);
+    var b = rec.begin.replace(/[-:]/g, "");
+    if (!b.endsWith("Z")) b += "Z";
+    var e = rec.end.replace(/[-:]/g, "");
+    if (!e.endsWith("Z")) e += "Z";
+    var url = CONFIG.serverUrl + "/api/stream/" + currentCam + "/playback/live.m3u8?begin=" + b + "&end=" + e;
+    startNativeHls(url, "microSD " + currentCamName + " " + tStart);
   }
 
   // === 4. NAVEGACIÓN Y CONTROL REMOTO ===

@@ -1,182 +1,108 @@
-📺 EZVIZ TV
+# 📺 EZVIZ TV — Visor de Cámaras para LG Smart TV (webOS)
 
-Tus cámaras en tu TV
-
-Un proyecto experimental para llevar las cámaras de seguridad EZVIZ directamente a los televisores LG webOS, navegadores web y dispositivos Android.
+**Tus cámaras de seguridad EZVIZ directamente en tu televisor LG, con video en vivo y reproducción de grabaciones de microSD.**
 
 ---
 
-💡 La idea
+## 🚀 Estado Actual del Proyecto (Noviembre 2026)
 
-EZVIZ TV nace de una idea sencilla: poder visualizar nuestras cámaras de seguridad EZVIZ directamente desde el televisor, sin depender exclusivamente del teléfono celular.
+**Hitos alcanzados y 100% validados en hardware real (LG 50UP7750PSB webOS 6.0):**
+- [x] **Video en directo fluido en 1080p** para ambas cámaras mediante decodificación por hardware nativo (`<video>` con HLS).
+- [x] **Cámara Galería (`H3c`)**: En vivo y reproducción completa de eventos grabados en la microSD vía RTSP con enrutamiento HLS dedicado (`/playback/live.m3u8`).
+- [x] **Cámara Living (`C3TN`)**: En vivo fluido en 1080p por RTSP local y consulta de registros microSD.
+- [x] **Resolución dinámica de IPs**: Detección en tiempo real de la IP de cada cámara por su número de serie en la API de EZVIZ, tolerante a cambios de IP por DHCP.
+- [x] **Identidad visual completa**: Iconos maestros, splash 16:9, favicons y assets empaquetados en la aplicación nativa IPK.
+- [x] **Interfaz de TV para grabaciones microSD**: Selector de fechas (Hoy, Ayer, Hace 2 días), consulta de eventos a la API y listado interactivo navegable 100% con el control remoto del televisor.
+- [x] **Manejo de errores amigable en pantalla**: Diagnósticos claros en el panel de eventos en caso de desconexiones o limitaciones de formato por modelo de cámara.
 
-Queremos desarrollar una aplicación que permita acceder a las cámaras vinculadas a una cuenta EZVIZ, visualizar imágenes en directo y, especialmente, consultar y reproducir las grabaciones almacenadas en las tarjetas microSD de cada cámara.
+---
 
-La intención es aprovechar la pantalla del televisor para convertirlo en un centro de visualización y consulta de nuestras cámaras.
+## 🏗️ Arquitectura del Sistema (Vía B)
 
-No buscamos reproducir toda la aplicación oficial de EZVIZ. Queremos desarrollar una alternativa sencilla, cómoda y adaptada al control remoto del televisor.
+Debido a que Chromium 79 en webOS no soporta el decodificador WASM moderno de `ezuikit-js` (sintaxis `?.` y consumo excesivo de CPU), se implementó una **arquitectura híbrida liviana**:
 
-🚧 Estado del proyecto
+```
+[ Cámaras EZVIZ ] (RTSP / ISAPI / Nube)
+       │
+       ▼ (LAN / Wi-Fi)
+[ Servidor Proxy Local (PC / Raspberry Pi) ]
+  ├── FastAPI (REST API para listado de cámaras y clips microSD)
+  └── ffmpeg (Transcodificación de baja latencia a HLS H.264/AAC)
+       │
+       ▼ (HTTP / HLS)
+[ Smart TV LG webOS 6.0 (IPK) ]
+  └── Reproductor nativo <video> por hardware (sin saturación de CPU)
+```
 
-En desarrollo — Etapa de investigación y pruebas de compatibilidad.
+---
 
-Actualmente estamos realizando pruebas desde el navegador web de un televisor LG con webOS 6.0.
+## 📂 Estructura del Repositorio
 
-El principal desafío consiste en encontrar un método compatible que permita acceder a las funciones de las cámaras, especialmente a las grabaciones almacenadas en sus tarjetas microSD.
+```text
+Visor-Ezviz/
+├── assets/                     # Paquete completo de identidad visual (iconos, splash, web, logo)
+├── dist/                       # Paquetes compilados listos para instalar (.ipk)
+├── ezviz-tv-test/              # Código fuente de la app nativa webOS (HTML5/JS ES5)
+│   ├── appinfo.json            # Metadatos del paquete webOS
+│   ├── index.html              # Interfaz de usuario adaptada a 1920x1080
+│   ├── app.js                  # Control de reproducción, API de clips y navegación
+│   ├── icon.png                # Icono 80x80 para el lanzador
+│   └── largeIcon.png           # Icono 130x130
+├── server/                     # Servidor proxy local
+│   ├── app.py                  # API FastAPI (puente RTSP -> HLS y consulta de eventos)
+│   └── requirements.txt        # Dependencias (fastapi, uvicorn, pyezvizapi)
+├── scripts/                    # Scripts auxiliares
+│   └── test_login.py           # Inicio de sesión inicial con 2FA y volcado de sesión
+├── iniciar_servidor.bat        # Script de un solo clic para iniciar el servidor en Windows
+└── README.md
+```
 
-Todavía no hemos conseguido implementar y validar el funcionamiento completo. Por eso, este repositorio documenta un desarrollo experimental y no una aplicación terminada.
+---
 
-Objetivos de investigación actuales
+## 🎮 Controles de la Aplicación en el Televisor
 
-- Investigar los mecanismos oficiales de comunicación y autorización de EZVIZ.
-- Identificar las posibilidades de acceso a las cámaras desde un navegador.
-- Comprobar la compatibilidad de los protocolos de transmisión con webOS.
-- Investigar cómo acceder a las grabaciones de las tarjetas microSD.
-- Evaluar las posibilidades de reproducción de grabaciones protegidas mediante los mecanismos oficiales de EZVIZ.
-- Encontrar una arquitectura que permita reutilizar la solución en distintas plataformas.
+La aplicación está diseñada para ser utilizada con el control remoto del televisor:
 
-🎯 Objetivos del proyecto
+| Tecla / Botón | Acción |
+| :--- | :--- |
+| **Tecla [5]** | Transmisión en directo: **Galería (`H3c`)** |
+| **Tecla [6]** | Transmisión en directo: **Living (`C3TN`)** |
+| **Tecla [R]** | Consultar grabaciones de la microSD para la cámara seleccionada |
+| **Flechas ⬅️ ➡️ ⬆️ ⬇️** | Navegar entre controles, selector de fechas y lista de clips grabados |
+| **Tecla [OK] / Enter** | Seleccionar cámara, cambiar fecha o reproducir el evento elegido |
+| **Tecla [3]** | Detener reproducción actual |
+| **Tecla [4]** | Limpiar panel de eventos y registro |
+| **Tecla [Back]** | Salir limpiamente de la aplicación |
 
-El objetivo es construir una aplicación multiplataforma con una interfaz sencilla y orientada principalmente a televisores.
+---
 
-Funciones que buscamos implementar
+## ⚙️ Puesta en Marcha
 
-1. Acceso y autorización
+### 1. Iniciar el servidor local (en la PC)
+Solo tenés que hacer doble clic sobre:
+```bat
+iniciar_servidor.bat
+```
+El servidor quedará disponible en el puerto `8080` de tu red local.
 
-- Iniciar sesión o autorizar el acceso mediante mecanismos compatibles con EZVIZ.
-- Obtener la lista de cámaras asociadas a la cuenta.
-- Identificar y seleccionar cada dispositivo.
+*(Para el futuro en una **Raspberry Pi**, basta con clonar el repo, instalar `requirements.txt` y correr `uvicorn server.app:app --host 0.0.0.0 --port 8080`).*
 
-2. Visualización en directo
+### 2. Instalar el paquete IPK en el televisor
+El paquete compilado más reciente se encuentra en `dist/`:
+```bash
+# Instalación estándar vía CLI de webOS:
+ares-install --device <nombre_tv> dist/com.manuel.ezviztv.test_0.1.1_all.ipk
+ares-launch --device <nombre_tv> com.manuel.ezviztv.test
 
-- Reproducir el video de las cámaras.
-- Seleccionar entre distintas cámaras.
-- Visualizar en pantalla completa.
-- Adaptar la interfaz al control remoto del televisor.
+# O mediante el script automático para TVs rooteadas:
+python scripts/deploy_tv.py
+```
 
-3. Grabaciones de microSD
+---
 
-- Consultar las grabaciones disponibles.
-- Seleccionar una fecha mediante un calendario.
-- Visualizar una línea de tiempo con los segmentos grabados.
-- Reproducir, pausar y avanzar o retroceder en las grabaciones.
+## 🔐 Seguridad y Privacidad
+- El repositorio **no contiene ninguna contraseña, token ni credencial privada**.
+- Los archivos de configuración local (`token.local.json`, `cameras.local.json`, `config.local.js`) están excluidos por `.gitignore`.
+- Los segmentos temporales de video (`server/_hls/`) se generan en memoria/disco local y se eliminan automáticamente al detener la reproducción.
 
-4. Experiencia de usuario
-
-- Interfaz optimizada para televisores.
-- Navegación mediante control remoto.
-- Compatibilidad con pantallas grandes.
-- Diseño sencillo, rápido y funcional.
-
-🖥️ Plataformas previstas
-
-El proyecto contempla tres posibles versiones:
-
-Plataforma| Tecnología prevista
-LG Smart TV| Aplicación webOS empaquetada en IPK
-Android| Aplicación Android empaquetada en APK
-Navegadores web| Aplicación web accesible desde Internet
-
-Las tres versiones buscarán compartir la mayor cantidad posible de código y lógica, siempre que las diferencias técnicas de cada plataforma lo permitan.
-
-📷 Equipos utilizados en las pruebas
-
-Las primeras investigaciones se realizan con cámaras EZVIZ de uso doméstico:
-
-- EZVIZ CS-H3c-R100-1K2WF.
-- EZVIZ CS-C3TN-AO-1H2WF.
-
-Televisor de referencia:
-
-- LG 50UP7750PSB.
-- Año: 2021.
-- Sistema operativo: webOS 6.0.
-- Motor de navegador: Chromium 79.
-- Resolución: 4K UHD.
-
-Estos equipos constituyen el entorno inicial de pruebas. La compatibilidad con otros modelos deberá verificarse posteriormente.
-
-🔬 Investigación técnica
-
-Una parte fundamental del proyecto consiste en investigar las posibilidades que ofrecen los mecanismos oficiales y las tecnologías compatibles con EZVIZ.
-
-Entre los aspectos que se están estudiando:
-
-- SDK y servicios de desarrollo de EZVIZ.
-- Autenticación y autorización de dispositivos.
-- Protocolos de transmisión de video.
-- Compatibilidad con navegadores basados en Chromium.
-- Acceso a grabaciones almacenadas en microSD.
-- Reproducción de contenido protegido.
-- Posible utilización de un servidor intermediario para adaptar los flujos de video a las plataformas de destino.
-
-No se presupone que todas estas alternativas sean compatibles. Cada una deberá ser investigada y probada antes de incorporarse al proyecto.
-
-🏗️ Organización del repositorio
-
-El repositorio está pensado para reunir el código, las pruebas y la documentación de todas las plataformas:
-
-EZVIZ-TV/
-│
-├── README.md
-│
-├── server/
-│
-├── web/
-│
-├── webos/
-│
-├── android/
-│
-├── shared/
-│
-├── branding/
-│
-├── apk-analysis/
-│
-├── documentation/
-│
-└── releases/
-
-La estructura podrá modificarse a medida que avance la investigación y se definan las tecnologías definitivas.
-
-🛣️ Hoja de ruta
-
-- [x] Definir el objetivo y alcance del proyecto.
-- [x] Identificar los primeros equipos de prueba.
-- [x] Comenzar las pruebas desde el navegador del televisor.
-- [ ] Investigar los mecanismos de autorización de EZVIZ.
-- [ ] Conseguir comunicación funcional con las cámaras.
-- [ ] Lograr visualizar video en directo desde webOS.
-- [ ] Investigar el acceso a las grabaciones de microSD.
-- [ ] Conseguir reproducir grabaciones desde el televisor.
-- [ ] Desarrollar una interfaz completa optimizada para TV.
-- [ ] Adaptar la solución a Android.
-- [ ] Publicar una versión web estable.
-- [ ] Preparar versiones instalables y documentación de uso.
-
-🤝 Filosofía del proyecto
-
-EZVIZ TV es un proyecto de experimentación, aprendizaje y desarrollo tecnológico.
-
-La prioridad es investigar, probar, documentar y encontrar soluciones reales a los desafíos de compatibilidad entre las cámaras EZVIZ y las distintas plataformas.
-
-No queremos dar por resuelto aquello que todavía está en pruebas. Cada avance deberá estar respaldado por una prueba funcional.
-
-La idea es construir algo útil, sencillo y accesible, aprovechando tecnologías web y las posibilidades de los televisores inteligentes.
-
-🔐 Seguridad y privacidad
-
-La seguridad de los dispositivos y de las cuentas es una prioridad.
-
-- No publicar contraseñas ni credenciales de EZVIZ.
-- No almacenar tokens o claves privadas en repositorios públicos.
-- No compartir grabaciones privadas ni datos sensibles.
-- Utilizar mecanismos de autorización seguros.
-- Respetar las condiciones de uso y licencias de las tecnologías utilizadas.
-
-📌 Una idea, un objetivo
-
-Que puedas sentarte frente a tu televisor, abrir EZVIZ TV, elegir una cámara y ver tanto lo que está sucediendo en ese momento como lo que quedó grabado en su tarjeta microSD.
-
-Ese es el objetivo. Todavía estamos trabajando para conseguirlo.
+- Cada usuario genera su propia sesión local mediante `scripts/test_login.py`.
