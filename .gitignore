@@ -17,3 +17,5 @@ Thumbs.db
 __pycache__/
 *.local.json
 server/_hls/
+bin/
+*.exe

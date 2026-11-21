@@ -71,14 +71,14 @@ http://<IP_DE_TU_PC>:8080   (ej. http://192.168.18.29:8080)
 ```
 
 ### Fuera de Casa (Acceso Remoto por Internet)
-Para ingresar desde redes 4G/5G u otras conexiones sin abrir puertos ni pagar suscripciones:
+Para ingresar desde redes 4G/5G u otras conexiones sin abrir puertos en el router ni pagar suscripciones:
 
-1. **Cloudflare Tunnel (Recomendado, 100% gratis y seguro):**
-   Descarga `cloudflared` y ejecuta:
-   ```bash
-   cloudflared tunnel --url http://localhost:8080
+1. **Cloudflare Tunnel (1 clic con script incluido):**
+   Solo haz doble clic sobre:
+   ```bat
+   iniciar_acceso_remoto.bat
    ```
-   Te entregará una URL HTTPS segura (ej. `https://tu-enlace.trycloudflare.com`) accesible desde cualquier lugar del mundo.
+   En unos segundos se generará en pantalla un enlace seguro HTTPS (ejemplo: `https://xxxx.trycloudflare.com`) que podrás abrir en el navegador de tu celular desde cualquier lugar del mundo.
 
 2. **Tailscale (VPN Mesh Privada):**
    Instala Tailscale en tu PC y en tu celular. Podrás acceder directamente con la IP privada de Tailscale con cifrado de punto a punto.
