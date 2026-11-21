@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>EZVIZ TV Web — Exploración Remota</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/web/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/web/favicon-16.png">
+  <link rel="stylesheet" href="style.css">
+  <script src="js/hls.min.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- BARRA SUPERIOR -->
+    <header class="header">
+      <div class="logo-group">
+        <img src="/assets/web/favicon-32.png" alt="EZVIZ TV" class="logo-icon">
+        <div>
+          <h1 class="app-title">EZVIZ TV <span>Web</span></h1>
+          <p class="app-subtitle">Visor y Exploración Remota de Seguridad</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="status-pill" id="server-status">
+          <span class="status-dot online"></span>
+          <span id="status-text">Conectado</span>
+        </div>
+        <button id="btn-remote-info" class="btn btn-secondary btn-sm" title="Guía de Acceso Remoto">
+          🌐 Acceso Remoto
+        </button>
+      </div>
+    </header>
+
+    <!-- CUERPO PRINCIPAL -->
+    <main class="main-content">
+      <!-- PANEL IZQUIERDO: REPRODUCTOR Y CÁMARAS -->
+      <section class="video-section">
+        <!-- SELECTOR DE CÁMARAS -->
+        <div class="camera-selector" id="camera-buttons">
+          <div class="loading-shimmer" style="padding: 10px; color: #8b949e;">Detectando cámaras...</div>
+        </div>
+
+        <!-- CONTENEDOR DEL REPRODUCTOR -->
+        <div class="player-wrapper">
+          <div class="video-container" id="video-box">
+            <video id="main-video" playsinline controls></video>
+            <div class="video-overlay" id="video-overlay">
+              <div class="spinner"></div>
+              <p id="overlay-msg">Seleccione una cámara para iniciar</p>
+            </div>
+            <div class="live-badge" id="live-badge">EN VIVO</div>
+          </div>
+
+          <!-- CONTROLES RÁPIDOS -->
+          <div class="player-controls">
+            <div class="stream-info">
+              <span id="current-stream-name" class="stream-name">--</span>
+              <span id="stream-meta" class="stream-meta">1080p HLS</span>
+            </div>
+            <div class="control-actions">
+              <button id="btn-snapshot" class="btn btn-action" title="Tomar foto instantánea en alta resolución">
+                📸 Foto HD
+              </button>
+              <button id="btn-fullscreen" class="btn btn-action" title="Pantalla completa">
+                ⛶ Pantalla Completa
+              </button>
+              <button id="btn-stop" class="btn btn-action btn-danger" title="Detener transmisión">
+                ⏹ Detener
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PANEL DERECHO: GRABACIONES MICROSD -->
+      <aside class="records-sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-title-group">
+            <h3>📂 Grabaciones microSD</h3>
+            <span class="cam-badge" id="records-cam-name">Galería</span>
+          </div>
+          <div class="date-tabs" id="date-shortcuts">
+            <button class="date-tab active" data-days="0">Hoy</button>
+            <button class="date-tab" data-days="1">Ayer</button>
+            <button class="date-tab" data-days="2">Antier</button>
+          </div>
+          <div class="custom-date-row">
+            <label for="custom-date">Fecha personalizada:</label>
+            <input type="date" id="custom-date" class="date-input">
+          </div>
+        </div>
+
+        <div class="records-container" id="records-list">
+          <div class="empty-state">
+            <p>Seleccione una fecha para ver los eventos grabados en la microSD.</p>
+          </div>
+        </div>
+
+        <div class="cam-info-footer" id="cam-telemetry">
+          <div class="telemetry-item">
+            <span>IP Local:</span> <strong id="cam-ip">--</strong>
+          </div>
+          <div class="telemetry-item">
+            <span>Modelo:</span> <strong id="cam-model">--</strong>
+          </div>
+          <div class="telemetry-item">
+            <span>Estado:</span> <strong id="cam-online">--</strong>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- MODAL DE FOTO SNAPSHOT -->
+  <div class="modal" id="snapshot-modal">
+    <div class="modal-backdrop" id="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h4 id="snapshot-title">📸 Foto Instantánea HD</h4>
+        <button class="close-btn" id="close-modal">&times;</button>
+      </div>
+      <div class="modal-body" id="snapshot-content">
+        <div class="spinner"></div>
+      </div>
+      <div class="modal-footer">
+        <a id="btn-download-snap" href="#" target="_blank" download="ezviz_snapshot.jpg" class="btn btn-primary btn-sm">Descargar Foto</a>
+        <button class="btn btn-secondary btn-sm" id="btn-close-snap">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL GUÍA ACCESO REMOTO -->
+  <div class="modal" id="remote-modal">
+    <div class="modal-backdrop" id="remote-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h4>🌐 Cómo Explorar Remotamente Fuera de Casa</h4>
+        <button class="close-btn" id="close-remote-modal">&times;</button>
+      </div>
+      <div class="modal-body modal-remote-guide">
+        <p>Tu servidor local transcodifica el video a HLS y consulta la microSD sin costos ni suscripciones. Para acceder a esta misma web desde cualquier celular o PC fuera de casa, tenés 3 alternativas:</p>
+        
+        <div class="guide-card">
+          <h5>1. Cloudflare Tunnel (Recomendado, 100% Gratis y Seguro)</h5>
+          <p>Te entrega un enlace seguro <code>https://tu-nombre.trycloudflare.com</code> sin abrir puertos en tu router.</p>
+          <pre>cloudflared tunnel --url http://localhost:8080</pre>
+        </div>
+
+        <div class="guide-card">
+          <h5>2. Tailscale (VPN Mesh Privada)</h5>
+          <p>Instalá Tailscale en tu PC y en tu celular. Podrás ingresar usando la IP privada de tu PC desde cualquier conexión 4G/5G en el mundo.</p>
+        </div>
+
+        <div class="guide-card">
+          <h5>3. Red Local / Wi-Fi</h5>
+          <p>Desde cualquier dispositivo conectado al mismo Wi-Fi, abrí:</p>
+          <pre><span id="lan-url-display">http://192.168.18.29:8080</span></pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-sm" id="btn-close-remote">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

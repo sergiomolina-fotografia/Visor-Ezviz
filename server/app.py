@@ -19,6 +19,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pyezvizapi import EzvizClient
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -210,6 +211,21 @@ def list_records(
     }
 
 
+@app.get("/api/cameras/{serial}/snapshot")
+def capture_snapshot(serial: str) -> dict[str, Any]:
+    client = _get_ezviz_client()
+    try:
+        res = client.capture_picture(serial, 1)
+        pic_url = res.get("captureInfo", {}).get("picUrl", "")
+        return {
+            "serial": serial,
+            "picUrl": pic_url,
+            "meta": res.get("meta", {}),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al capturar fotografía: {str(e)}")
+
+
 @app.get("/api/stream/{serial}/live.m3u8")
 def get_hls_playlist(serial: str) -> FileResponse:
     local_cfg = _load_local_codes()
@@ -332,3 +348,15 @@ def stop_stream(serial: str) -> JSONResponse:
     _stop_ffmpeg(f"{serial}_playback")
     _playback_active_ranges.pop(serial, None)
     return JSONResponse({"stopped": serial})
+
+
+# Montar archivos estáticos para la interfaz Web y assets de marca
+ASSETS_DIR = ROOT_DIR / "assets"
+WEB_DIR = ROOT_DIR / "web"
+
+if ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+
+if WEB_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="web")
+

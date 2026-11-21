@@ -19,6 +19,8 @@ if not exist ".venv\Scripts\python.exe" (
 taskkill /F /IM ffmpeg.exe >nul 2>&1
 
 echo [*] Servidor ejecutandose en el puerto 8080...
+echo [*] Web Dashboard Local: http://localhost:8080
+echo [*] Para acceso desde celular / tablet en la misma red Wi-Fi, usa la IP de esta PC.
 echo [*] Para detenerlo, presiona CTRL + C o cierra esta ventana.
 echo.
 
