@@ -1,5 +1,6 @@
 # Paquetes compilados y dependencias
 *.ipk
+!dist/*.ipk
 *.tgz
 node_modules/
 

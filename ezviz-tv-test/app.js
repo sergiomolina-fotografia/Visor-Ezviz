@@ -1,15 +1,12 @@
 (function () {
   "use strict";
 
-  // === 1. CONFIGURACIÓN DE PRUEBA (no subir con credenciales reales) ===
   var CONFIG = {
-    accessToken: "PEGAR_ACCESS_TOKEN_AQUI",
-    areaDomain: "https://isaopen.ezvizlife.com",
-    liveUrl: "ezopen://CODIGO_VERIFICACION@open.ys7.com/SERIAL_CAMARA/1.live",
-    recUrl: "ezopen://CODIGO_VERIFICACION@open.ys7.com/SERIAL_CAMARA/1.rec?begin=20261119120000&end=20261119120500",
-    cam1HlsUrl: "http://192.168.18.29:8080/api/stream/BE3871590/live.m3u8",
-    cam2HlsUrl: "http://192.168.18.29:8080/api/stream/J92500664/live.m3u8"
+    serverUrl: "http://192.168.18.29:8080",
+    cam1Serial: "BE3871590",
+    cam2Serial: "J92500664"
   };
+
   if (window.EZVIZ_LOCAL_CONFIG) {
     for (var k in window.EZVIZ_LOCAL_CONFIG) {
       if (Object.prototype.hasOwnProperty.call(window.EZVIZ_LOCAL_CONFIG, k)) {
@@ -18,13 +15,21 @@
     }
   }
 
-  var player = null;
-  var buttons = [];
-  var focusIndex = 0;
+  var currentCam = CONFIG.cam1Serial;
+  var currentCamName = "Galería";
+  var selectedDaysAgo = 0;
+  var focusZone = "controls"; // "controls" | "dates" | "records"
+  var controlButtons = [];
+  var dateButtons = [];
+  var recordItems = [];
+  var focusIdx = 0;
+
   var logPanel = document.getElementById("log-panel");
   var statusBar = document.getElementById("status-bar");
+  var recordsList = document.getElementById("records-list");
+  var recordsCamLabel = document.getElementById("records-cam-label");
 
-  // === 2. CONSOLA EN PANTALLA ===
+  // === 1. REGISTRO EN PANTALLA ===
   function appendLog(level, args) {
     var now = new Date();
     var ts = now.toTimeString().split(" ")[0];
@@ -37,7 +42,7 @@
 
     var line = document.createElement("div");
     line.className = "log-" + level;
-    line.textContent = "[" + ts + "] [" + level.toUpperCase() + "] " + text;
+    line.textContent = "[" + ts + "] " + text;
     logPanel.appendChild(line);
     logPanel.scrollTop = logPanel.scrollHeight;
   }
@@ -52,173 +57,270 @@
     return false;
   };
 
-  window.addEventListener("unhandledrejection", function (ev) {
-    appendLog("error", ["PROMISE REJECTED:", ev.reason]);
-  });
-
-  // === 3. DIAGNÓSTICO DE CHROMIUM 79 ===
-  function runDiagnostics() {
-    appendLog("ok", ["--- Diagnóstico webOS 6.0 ---"]);
-    console.log("UA:", navigator.userAgent);
-    console.log("Origin:", window.location.origin, "| Protocol:", window.location.protocol);
-    console.log("WebAssembly:", typeof WebAssembly === "object");
-    console.log("SharedArrayBuffer:", typeof SharedArrayBuffer !== "undefined");
-    console.log("EZUIKit global:", typeof window.EZUIKit, "| EZUIKitPlayer:", typeof window.EZUIKitPlayer);
-
-    if (window.MediaSource && typeof MediaSource.isTypeSupported === "function") {
-      console.log("MSE H.264:", MediaSource.isTypeSupported('video/mp4; codecs="avc1.42E01E"'));
-      console.log("MSE H.265:", MediaSource.isTypeSupported('video/mp4; codecs="hvc1.1.6.L93.B0"'));
-    } else {
-      console.warn("MediaSource API no disponible");
-    }
-  }
-
+  // Monitor de memoria cada 5s
   setInterval(function () {
     var ramText = "--";
     if (window.performance && performance.memory) {
       ramText = Math.round(performance.memory.usedJSHeapSize / (1024 * 1024)) + " MB";
     }
-    statusBar.textContent = (player ? "Reproduciendo" : "Detenido") + " | RAM JS: " + ramText;
+    var v = document.querySelector("video");
+    var state = (v && !v.paused) ? "Reproduciendo" : "Detenido";
+    statusBar.textContent = currentCamName + " | " + state + " | RAM: " + ramText;
   }, 5000);
 
-  // === 4. CONTROL DEL REPRODUCTOR EZUIKIT-JS ===
-  function getPlayerConstructor() {
-    if (window.EZUIKit && window.EZUIKit.EZUIKitPlayer) return window.EZUIKit.EZUIKitPlayer;
-    if (window.EZUIKitPlayer) return window.EZUIKitPlayer;
-    return null;
-  }
-
+  // === 2. REPRODUCCIÓN NATIVA HLS (LG <video>) ===
   function stopPlayer(callback) {
-    if (!player) { if (callback) callback(); return; }
-    console.log("Deteniendo reproductor...");
-    try {
-      var p = player.destroy ? player.destroy() : player.stop();
-      player = null;
-      if (p && typeof p.then === "function") {
-        p.then(function () {
-          document.getElementById("video-container").innerHTML = "";
-          if (callback) callback();
-        }).catch(function (err) {
-          console.warn("Error al destruir player:", err);
-          document.getElementById("video-container").innerHTML = "";
-          if (callback) callback();
-        });
-      } else {
-        document.getElementById("video-container").innerHTML = "";
-        if (callback) callback();
-      }
-    } catch (e) {
-      console.error("Excepción al detener:", e.message);
-      player = null;
-      document.getElementById("video-container").innerHTML = "";
-      if (callback) callback();
-    }
-  }
-
-  function startStream(url, label) {
-    var PlayerCtor = getPlayerConstructor();
-    if (!PlayerCtor) {
-      console.error("No se encontró EZUIKitPlayer. Verificá lib/ezuikit.js");
-      return;
-    }
-    stopPlayer(function () {
-      appendLog("ok", ["Iniciando " + label + "..."]);
-      console.log("URL:", url);
+    var container = document.getElementById("video-container");
+    var video = container.querySelector("video");
+    if (video) {
       try {
-        player = new PlayerCtor({
-          id: "video-container",
-          accessToken: CONFIG.accessToken,
-          url: url,
-          width: 1280,
-          height: 720,
-          autoplay: true,
-          env: { domain: CONFIG.areaDomain },
-          handleSuccess: function () { appendLog("ok", ["Stream iniciado correctamente (" + label + ")"]); },
-          handleError: function (err) { console.error("EZUIKit handleError:", err); }
-        });
-      } catch (e) {
-        console.error("Error al instanciar EZUIKitPlayer:", e.message, e.stack);
-      }
-    });
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      } catch (e) {}
+    }
+    container.innerHTML = "";
+    if (callback) callback();
   }
 
-  function startNativeHls(url) {
+  function startNativeHls(url, label) {
     stopPlayer(function () {
-      appendLog("ok", ["Iniciando HLS nativo (Vía B)..."]);
-      console.log("HLS URL:", url);
+      appendLog("ok", ["Iniciando transmisión (" + (label || "Video") + ")..."]);
       var container = document.getElementById("video-container");
-      container.innerHTML = "";
       var video = document.createElement("video");
-      video.style.width = "1280px";
-      video.style.height = "720px";
-      video.style.background = "#000";
       video.autoplay = true;
       video.controls = true;
       video.playsInline = true;
+
       video.addEventListener("loadedmetadata", function () {
-        appendLog("ok", ["HLS metadata cargada:", video.videoWidth + "x" + video.videoHeight]);
+        appendLog("ok", ["Metadata lista: " + video.videoWidth + "x" + video.videoHeight]);
       });
       video.addEventListener("playing", function () {
-        appendLog("ok", ["Reproduciendo HLS nativo por hardware!"]);
+        appendLog("ok", ["Reproduciendo por hardware nativo"]);
       });
       video.addEventListener("error", function () {
         var err = video.error;
-        console.error("Video error:", err ? err.code + " " + err.message : "desconocido");
+        console.error("Error en reproductor:", err ? err.code + " " + err.message : "desconocido");
       });
+
       video.src = url;
       container.appendChild(video);
       var p = video.play();
       if (p && typeof p.catch === "function") {
-        p.catch(function (e) { console.warn("Autoplay play() warning:", e.message); });
+        p.catch(function (e) { console.warn("Aviso play():", e.message); });
       }
     });
   }
 
-  // === 5. NAVEGACIÓN CON CONTROL REMOTO ===
+  function playLive(serial, name) {
+    currentCam = serial;
+    currentCamName = name;
+    recordsCamLabel.textContent = name;
+    document.getElementById("btn-cam1").classList.toggle("active-cam", serial === CONFIG.cam1Serial);
+    document.getElementById("btn-cam2").classList.toggle("active-cam", serial === CONFIG.cam2Serial);
+    var url = CONFIG.serverUrl + "/api/stream/" + serial + "/live.m3u8";
+    startNativeHls(url, "En vivo: " + name);
+  }
+
+  // === 3. CONSULTA Y REPRODUCCIÓN DE MICROSD ===
+  function getDateString(daysAgo) {
+    var d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    var yyyy = d.getFullYear();
+    var mm = String(d.getMonth() + 1).padStart(2, "0");
+    var dd = String(d.getDate()).padStart(2, "0");
+    return yyyy + "-" + mm + "-" + dd;
+  }
+
+  function loadRecords(daysAgo) {
+    selectedDaysAgo = daysAgo;
+    var dateStr = getDateString(daysAgo);
+    recordsList.innerHTML = '<div style="color: #38bdf8; text-align: center; margin-top: 30px;">Buscando grabaciones del ' + dateStr + '...</div>';
+    appendLog("info", ["Consultando grabaciones de", currentCamName, "en fecha", dateStr]);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", CONFIG.serverUrl + "/api/cameras/" + currentCam + "/records?date=" + dateStr + "&size=50");
+    xhr.timeout = 10000;
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        try {
+          var res = JSON.parse(xhr.responseText);
+          renderRecords(res.records || [], dateStr);
+        } catch (e) {
+          recordsList.innerHTML = '<div style="color: #f87171; text-align: center;">Error al procesar respuesta JSON</div>';
+        }
+      } else {
+        recordsList.innerHTML = '<div style="color: #f87171; text-align: center;">Error del servidor (' + xhr.status + ')</div>';
+      }
+    };
+    xhr.onerror = function () {
+      recordsList.innerHTML = '<div style="color: #f87171; text-align: center;">No se pudo conectar con el servidor local</div>';
+    };
+    xhr.send();
+  }
+
+  function renderRecords(records, dateStr) {
+    recordsList.innerHTML = "";
+    if (records.length === 0) {
+      recordsList.innerHTML = '<div style="color: #94a3b8; text-align: center; margin-top: 30px;">No hay eventos grabados el ' + dateStr + '</div>';
+      return;
+    }
+
+    appendLog("ok", ["Encontradas " + records.length + " grabaciones"]);
+    recordItems = [];
+
+    records.forEach(function (rec, index) {
+      var item = document.createElement("div");
+      item.className = "record-item";
+      item.tabIndex = 0;
+      
+      var tStart = rec.begin.split("T")[1] || rec.begin;
+      var tEnd = rec.end.split("T")[1] || rec.end;
+      
+      item.innerHTML = '<span>🕒 ' + tStart + ' - ' + tEnd + '</span><span class="tag">' + (rec.type || "CLIP") + '</span>';
+      
+      item.addEventListener("click", function () {
+        playRecordClip(rec);
+      });
+
+      recordsList.appendChild(item);
+      recordItems.push(item);
+    });
+
+    // Actualizar botones de fechas
+    dateButtons.forEach(function (btn, idx) {
+      btn.classList.toggle("active-date", idx === selectedDaysAgo);
+    });
+  }
+
+  function playRecordClip(rec) {
+    appendLog("ok", ["Reproduciendo grabación: " + rec.begin + " -> " + rec.end]);
+    var b = rec.begin.replace(/[-:]/g, "") + (rec.begin.endsWith("Z") ? "" : "Z");
+    var e = rec.end.replace(/[-:]/g, "") + (rec.end.endsWith("Z") ? "" : "Z");
+    var url = CONFIG.serverUrl + "/api/stream/" + currentCam + "/playback.m3u8?begin=" + b + "&end=" + e;
+    startNativeHls(url, "microSD " + currentCamName + " " + rec.begin);
+  }
+
+  // === 4. NAVEGACIÓN Y CONTROL REMOTO ===
   function updateFocus() {
-    for (var i = 0; i < buttons.length; i++) {
-      if (i === focusIndex) { buttons[i].classList.add("focused"); buttons[i].focus(); }
-      else { buttons[i].classList.remove("focused"); }
+    // Limpiar focos anteriores
+    document.querySelectorAll(".focused").forEach(function (el) { el.classList.remove("focused"); });
+
+    if (focusZone === "controls") {
+      if (controlButtons[focusIdx]) {
+        controlButtons[focusIdx].classList.add("focused");
+        controlButtons[focusIdx].focus();
+      }
+    } else if (focusZone === "dates") {
+      if (dateButtons[focusIdx]) {
+        dateButtons[focusIdx].classList.add("focused");
+        dateButtons[focusIdx].focus();
+      }
+    } else if (focusZone === "records") {
+      if (recordItems[focusIdx]) {
+        recordItems[focusIdx].classList.add("focused");
+        recordItems[focusIdx].focus();
+        recordItems[focusIdx].scrollIntoView({ block: "nearest" });
+      }
     }
   }
 
-  function executeAction(action) {
-    if (action === "live") startStream(CONFIG.liveUrl, "EN VIVO");
-    else if (action === "rec") {
-      var recHls = "http://192.168.18.29:8080/api/stream/BE3871590/playback.m3u8?begin=20261120T094600Z&end=20261120T094644Z";
-      startNativeHls(recHls);
-    }
-    else if (action === "cam1") startNativeHls(CONFIG.cam1HlsUrl);
-    else if (action === "cam2") startNativeHls(CONFIG.cam2HlsUrl);
-    else if (action === "stop") stopPlayer(function () { console.log("Reproductor detenido."); });
-    else if (action === "clear") { logPanel.innerHTML = ""; appendLog("ok", ["Log limpiado."]); }
+  function handleAction(action) {
+    if (action === "cam1") playLive(CONFIG.cam1Serial, "Galería");
+    else if (action === "cam2") playLive(CONFIG.cam2Serial, "Living");
+    else if (action === "load-records") loadRecords(selectedDaysAgo);
+    else if (action === "stop") stopPlayer(function () { appendLog("info", ["Reproductor detenido"]); });
+    else if (action === "clear") { logPanel.innerHTML = ""; appendLog("ok", ["Registro limpiado"]); }
   }
 
   document.addEventListener("keydown", function (ev) {
     var code = ev.keyCode;
-    if (code === 37) { focusIndex = (focusIndex - 1 + buttons.length) % buttons.length; updateFocus(); }
-    else if (code === 39) { focusIndex = (focusIndex + 1) % buttons.length; updateFocus(); }
-    else if (code === 13) { executeAction(buttons[focusIndex].getAttribute("data-action")); }
-    else if (code === 49) { executeAction("live"); }
-    else if (code === 50) { executeAction("rec"); }
-    else if (code === 51) { executeAction("stop"); }
-    else if (code === 52) { executeAction("clear"); }
-    else if (code === 53) { executeAction("cam1"); }
-    else if (code === 54) { executeAction("cam2"); }
-    else if (code === 461) {
+
+    // Atajos directos numéricos en cualquier momento
+    if (code === 53) { playLive(CONFIG.cam1Serial, "Galería"); return; } // Tecla 5
+    if (code === 54) { playLive(CONFIG.cam2Serial, "Living"); return; }  // Tecla 6
+    if (code === 51) { handleAction("stop"); return; }                   // Tecla 3
+    if (code === 52) { handleAction("clear"); return; }                  // Tecla 4
+    if (code === 82) { loadRecords(selectedDaysAgo); return; }           // Tecla R
+
+    // Tecla BACK de webOS (461) o Escape
+    if (code === 461 || code === 27) {
       stopPlayer(function () {
         if (window.webOSSystem && window.webOSSystem.platformBack) window.webOSSystem.platformBack();
         else window.close();
       });
+      return;
+    }
+
+    // Flecha DERECHA (39)
+    if (code === 39) {
+      if (focusZone === "controls") {
+        if (focusIdx < controlButtons.length - 1) focusIdx++;
+        else { focusZone = "dates"; focusIdx = 0; }
+      } else if (focusZone === "dates") {
+        if (focusIdx < dateButtons.length - 1) focusIdx++;
+      }
+      updateFocus();
+    }
+    // Flecha IZQUIERDA (37)
+    else if (code === 37) {
+      if (focusZone === "dates") {
+        if (focusIdx > 0) focusIdx--;
+        else { focusZone = "controls"; focusIdx = controlButtons.length - 1; }
+      } else if (focusZone === "records") {
+        focusZone = "controls"; focusIdx = 0;
+      } else if (focusZone === "controls") {
+        if (focusIdx > 0) focusIdx--;
+      }
+      updateFocus();
+    }
+    // Flecha ABAJO (40)
+    else if (code === 40) {
+      if (focusZone === "dates") {
+        if (recordItems.length > 0) { focusZone = "records"; focusIdx = 0; }
+      } else if (focusZone === "records") {
+        if (focusIdx < recordItems.length - 1) focusIdx++;
+      }
+      updateFocus();
+    }
+    // Flecha ARRIBA (38)
+    else if (code === 38) {
+      if (focusZone === "records") {
+        if (focusIdx > 0) focusIdx--;
+        else { focusZone = "dates"; focusIdx = 0; }
+      }
+      updateFocus();
+    }
+    // Tecla ENTER / OK (13)
+    else if (code === 13) {
+      if (focusZone === "controls") {
+        handleAction(controlButtons[focusIdx].getAttribute("data-action"));
+      } else if (focusZone === "dates") {
+        var days = parseInt(dateButtons[focusIdx].getAttribute("data-days"), 10);
+        loadRecords(days);
+      } else if (focusZone === "records") {
+        if (recordItems[focusIdx]) recordItems[focusIdx].click();
+      }
     }
   });
 
   window.addEventListener("load", function () {
-    buttons = Array.prototype.slice.call(document.querySelectorAll("#controls button"));
-    for (var i = 0; i < buttons.length; i++) {
-      buttons[i].addEventListener("click", function () { executeAction(this.getAttribute("data-action")); });
-    }
+    controlButtons = Array.prototype.slice.call(document.querySelectorAll("#controls button"));
+    dateButtons = Array.prototype.slice.call(document.querySelectorAll(".date-row button"));
+
+    controlButtons.forEach(function (btn) {
+      btn.addEventListener("click", function () { handleAction(this.getAttribute("data-action")); });
+    });
+
+    dateButtons.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var days = parseInt(this.getAttribute("data-days"), 10);
+        loadRecords(days);
+      });
+    });
+
     updateFocus();
-    runDiagnostics();
+    appendLog("ok", ["EZVIZ TV iniciado - webOS 6.0 listo"]);
+    appendLog("info", ["Servidor configurado en: " + CONFIG.serverUrl]);
   });
 })();

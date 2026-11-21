@@ -2,59 +2,120 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>EZVIZ TV Test - webOS 6.0</title>
+  <title>EZVIZ TV - webOS 6.0</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       width: 1920px; height: 1080px; overflow: hidden;
-      background: #0d1117; color: #e6edf3; font-family: sans-serif;
-      display: flex; flex-direction: column;
+      background: #0b0f19; color: #e6edf3; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex; flex-direction: column; user-select: none;
     }
     header {
-      height: 80px; padding: 0 32px; background: #161b22;
-      border-bottom: 2px solid #30363d; display: flex;
+      height: 70px; padding: 0 32px; background: #111827;
+      border-bottom: 2px solid #1f2937; display: flex;
       align-items: center; justify-content: space-between;
     }
-    header h1 { font-size: 28px; font-weight: 600; }
-    #status-bar { font-size: 20px; color: #58a6ff; }
-    main { flex: 1; display: flex; padding: 24px 32px; gap: 24px; height: 900px; }
-    #player-section { flex: 0 0 1280px; display: flex; flex-direction: column; gap: 16px; }
-    #video-container { width: 1280px; height: 720px; background: #000; border: 2px solid #30363d; }
-    #controls { display: flex; gap: 16px; }
-    button {
-      padding: 16px 24px; font-size: 22px; background: #21262d;
-      color: #e6edf3; border: 3px solid #30363d; border-radius: 8px; cursor: pointer;
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand img { width: 42px; height: 42px; border-radius: 8px; }
+    .brand h1 { font-size: 26px; font-weight: 700; letter-spacing: 0.5px; color: #38bdf8; }
+    #status-bar { font-size: 18px; color: #94a3b8; font-family: monospace; }
+
+    main { flex: 1; display: flex; padding: 20px 32px; gap: 24px; height: 930px; }
+    
+    #player-section { flex: 0 0 1280px; display: flex; flex-direction: column; gap: 14px; }
+    #video-container { width: 1280px; height: 720px; background: #000; border-radius: 12px; overflow: hidden; border: 2px solid #1f2937; position: relative; }
+    #video-container video { width: 100%; height: 100%; object-fit: contain; }
+    
+    #controls { display: flex; gap: 12px; flex-wrap: wrap; }
+    button.tv-btn {
+      padding: 12px 20px; font-size: 19px; font-weight: 600; background: #1e293b;
+      color: #e2e8f0; border: 3px solid #334155; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s ease;
     }
-    button.focused, button:focus { background: #1f6feb; border-color: #ffffff; outline: none; }
+    button.tv-btn.focused, button.tv-btn:focus {
+      background: #0284c7; border-color: #ffffff; color: #ffffff; outline: none; transform: scale(1.03);
+    }
+    button.tv-btn.active-cam {
+      border-color: #38bdf8; background: #0f172a; color: #38bdf8;
+    }
+
+    #sidebar { flex: 1; display: flex; flex-direction: column; gap: 14px; height: 870px; }
+    .sidebar-card {
+      background: #111827; border: 2px solid #1f2937; border-radius: 12px;
+      padding: 16px; display: flex; flex-direction: column;
+    }
+    .sidebar-title { font-size: 20px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+    
+    #records-card { flex: 0 0 460px; }
+    .date-row { display: flex; gap: 10px; margin-bottom: 12px; }
+    .date-btn {
+      flex: 1; padding: 8px 12px; font-size: 16px; background: #1e293b; color: #cbd5e1;
+      border: 2px solid #334155; border-radius: 6px; cursor: pointer; text-align: center;
+    }
+    .date-btn.focused { background: #0284c7; color: #fff; border-color: #fff; }
+    .date-btn.active-date { background: #0369a1; border-color: #38bdf8; color: #fff; }
+
+    #records-list {
+      flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+      padding-right: 4px;
+    }
+    .record-item {
+      padding: 10px 14px; background: #1e293b; border: 2px solid #334155; border-radius: 8px;
+      color: #e2e8f0; font-size: 17px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    }
+    .record-item.focused { background: #0284c7; border-color: #fff; color: #fff; transform: scale(1.02); }
+    .record-item .tag { font-size: 12px; padding: 3px 8px; background: #dc2626; color: #fff; border-radius: 4px; font-weight: bold; }
+
+    #log-card { flex: 1; min-height: 0; }
     #log-panel {
-      flex: 1; background: #010409; border: 2px solid #30363d; padding: 16px;
-      overflow-y: auto; font-family: monospace; font-size: 16px;
-      line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+      flex: 1; background: #030712; border-radius: 6px; padding: 10px 12px;
+      overflow-y: auto; font-family: monospace; font-size: 14px; line-height: 1.4;
+      white-space: pre-wrap; word-break: break-word; color: #cbd5e1;
     }
-    .log-info { color: #e6edf3; } .log-warn { color: #d29922; }
-    .log-error { color: #f85149; } .log-ok { color: #3fb950; }
+    .log-info { color: #94a3b8; } .log-warn { color: #fbbf24; }
+    .log-error { color: #f87171; } .log-ok { color: #4ade80; }
   </style>
 </head>
 <body>
   <header>
-    <h1>EZVIZ TV — Test Chromium 79</h1>
+    <div class="brand">
+      <img src="icon.png" alt="Logo" />
+      <h1>EZVIZ TV</h1>
+    </div>
     <div id="status-bar">Listo | RAM: -- MB</div>
   </header>
   <main>
     <section id="player-section">
       <div id="video-container"></div>
       <div id="controls">
-        <button id="btn-live" data-action="live">[1] En vivo (EZOPEN)</button>
-        <button id="btn-rec" data-action="rec">[2] microSD (.rec)</button>
-        <button id="btn-stop" data-action="stop">[3] Detener</button>
-        <button id="btn-clear" data-action="clear">[4] Limpiar log</button>
-        <button id="btn-cam1" data-action="cam1">[5] Galería (H3c)</button>
-        <button id="btn-cam2" data-action="cam2">[6] Living (C3TN)</button>
+        <button class="tv-btn" id="btn-cam1" data-action="cam1">[5] Galería (H3c)</button>
+        <button class="tv-btn" id="btn-cam2" data-action="cam2">[6] Living (C3TN)</button>
+        <button class="tv-btn" id="btn-load-records" data-action="load-records">[R] Ver Grabaciones</button>
+        <button class="tv-btn" id="btn-stop" data-action="stop">[3] Detener</button>
+        <button class="tv-btn" id="btn-clear" data-action="clear">[4] Limpiar</button>
       </div>
     </section>
-    <aside id="log-panel"></aside>
+    <aside id="sidebar">
+      <div class="sidebar-card" id="records-card">
+        <div class="sidebar-title">
+          <span>📼 Grabaciones microSD</span>
+          <span id="records-cam-label" style="font-size: 15px; color: #38bdf8;">Galería</span>
+        </div>
+        <div class="date-row">
+          <button class="date-btn active-date" id="btn-date-today" data-days="0">Hoy</button>
+          <button class="date-btn" id="btn-date-yesterday" data-days="1">Ayer</button>
+          <button class="date-btn" id="btn-date-prev" data-days="2">Hace 2 días</button>
+        </div>
+        <div id="records-list">
+          <div style="color: #64748b; text-align: center; margin-top: 40px;">Presioná [R] o seleccioná una fecha para cargar clips</div>
+        </div>
+      </div>
+      <div class="sidebar-card" id="log-card">
+        <div class="sidebar-title">📋 Registro del Sistema</div>
+        <div id="log-panel"></div>
+      </div>
+    </aside>
   </main>
-  <script src="lib/ezuikit.js"></script>
   <script src="config.local.js" onerror="void(0)"></script>
   <script src="app.js"></script>
 </body>
