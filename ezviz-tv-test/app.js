@@ -184,7 +184,10 @@
 
   function executeAction(action) {
     if (action === "live") startStream(CONFIG.liveUrl, "EN VIVO");
-    else if (action === "rec") startStream(CONFIG.recUrl, "microSD");
+    else if (action === "rec") {
+      var recHls = "http://192.168.18.29:8080/api/stream/BE3871590/playback.m3u8?begin=20261120T094600Z&end=20261120T094644Z";
+      startNativeHls(recHls);
+    }
     else if (action === "cam1") startNativeHls(CONFIG.cam1HlsUrl);
     else if (action === "cam2") startNativeHls(CONFIG.cam2HlsUrl);
     else if (action === "stop") stopPlayer(function () { console.log("Reproductor detenido."); });

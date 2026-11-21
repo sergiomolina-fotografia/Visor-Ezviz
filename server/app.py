@@ -210,20 +210,6 @@ def get_hls_playlist(serial: str) -> FileResponse:
     )
 
 
-@app.get("/api/stream/{serial}/{segment}")
-def get_hls_segment(serial: str, segment: str) -> FileResponse:
-    if "/" in segment or "\\" in segment or ".." in segment:
-        raise HTTPException(status_code=400, detail="Nombre de segmento inválido")
-    seg_path = HLS_ROOT / serial / segment
-    if not seg_path.exists():
-        raise HTTPException(status_code=404, detail="Segmento no encontrado")
-    return FileResponse(
-        seg_path,
-        media_type="video/mp2t",
-        headers={"Cache-Control": "no-cache"},
-    )
-
-
 @app.get("/api/stream/{serial}/playback.m3u8")
 def get_playback_playlist(
     serial: str,
@@ -254,6 +240,20 @@ def get_playback_playlist(
     return FileResponse(
         m3u8_path,
         media_type="application/vnd.apple.mpegurl",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/api/stream/{serial}/{segment}")
+def get_hls_segment(serial: str, segment: str) -> FileResponse:
+    if "/" in segment or "\\" in segment or ".." in segment:
+        raise HTTPException(status_code=400, detail="Nombre de segmento inválido")
+    seg_path = HLS_ROOT / serial / segment
+    if not seg_path.exists():
+        raise HTTPException(status_code=404, detail="Segmento no encontrado")
+    return FileResponse(
+        seg_path,
+        media_type="video/mp2t",
         headers={"Cache-Control": "no-cache"},
     )
 
