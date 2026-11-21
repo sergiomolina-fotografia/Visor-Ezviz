@@ -1,0 +1,20 @@
+EZVIZ TV — PAQUETE DE IDENTIDAD VISUAL
+======================================
+
+Contenido:
+- icons/ezviz-tv-icon-1024.png: icono maestro cuadrado (1024×1024).
+- icons/ezviz-tv-icon-512.png: icono 512×512.
+- icons/ezviz-tv-icon-256.png: icono 256×256.
+- splash/ezviz-tv-splash-1920x1080.jpg: pantalla de inicio 16:9.
+- web/ezviz-tv-banner-1920x600.jpg: banner horizontal para la web.
+- web/favicon-*.png: favicons de 64, 48, 32 y 16 px.
+- logo/: composiciones del logo y arte original.
+- preview/: lámina de referencia con los recursos.
+
+Notas:
+- Los archivos se exportaron desde las composiciones gráficas generadas.
+- Los iconos y favicons tienen fondo oscuro; no son PNG transparentes.
+- El logo es una propuesta visual independiente inspirada en la paleta de EZVIZ.
+  No representa una identidad oficial ni implica afiliación con LG o EZVIZ.
+- Antes de publicar en tiendas, revisar las normas de marca y los requisitos
+  específicos de iconos/splash de cada plataforma.
