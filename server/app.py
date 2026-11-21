@@ -224,7 +224,42 @@ def get_hls_segment(serial: str, segment: str) -> FileResponse:
     )
 
 
+@app.get("/api/stream/{serial}/playback.m3u8")
+def get_playback_playlist(
+    serial: str,
+    begin: str = Query(..., description="Inicio en formato ISO o YYYYMMDDTHHmmssZ"),
+    end: str = Query(..., description="Fin en formato ISO o YYYYMMDDTHHmmssZ"),
+) -> FileResponse:
+    local_cfg = _load_local_codes()
+    cam_cfg = local_cfg.get(serial)
+    if not cam_cfg:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Falta configurar {serial} en cameras.local.json.",
+        )
+    ip = cam_cfg["ip"]
+    code = cam_cfg["code"]
+    
+    # Formatear a sintaxis Hikvision/ISAPI: YYYYMMDDTHHmmssZ
+    fmt_begin = begin.replace("-", "").replace(":", "")
+    if not fmt_begin.endswith("Z"):
+        fmt_begin += "Z"
+    fmt_end = end.replace("-", "").replace(":", "")
+    if not fmt_end.endswith("Z"):
+        fmt_end += "Z"
+        
+    rtsp_url = f"rtsp://admin:{code}@{ip}:554/Streaming/tracks/101?starttime={fmt_begin}&endtime={fmt_end}"
+    stream_key = f"{serial}_playback"
+    m3u8_path = _ensure_hls_stream(stream_key, rtsp_url)
+    return FileResponse(
+        m3u8_path,
+        media_type="application/vnd.apple.mpegurl",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
 @app.post("/api/stream/{serial}/stop")
 def stop_stream(serial: str) -> JSONResponse:
     _stop_ffmpeg(serial)
+    _stop_ffmpeg(f"{serial}_playback")
     return JSONResponse({"stopped": serial})
