@@ -53,6 +53,22 @@ def _load_local_codes() -> dict[str, dict[str, str]]:
     return json.loads(CAMERAS_LOCAL_FILE.read_text(encoding="utf-8"))
 
 
+def _resolve_camera_ip(serial: str, local_cfg: dict[str, dict[str, str]]) -> str:
+    # 1. Intentar consultar IP en tiempo real vía API EZVIZ
+    try:
+        client = _get_ezviz_client()
+        cams = client.load_cameras()
+        if serial in cams and cams[serial].get("local_ip"):
+            api_ip = cams[serial]["local_ip"]
+            if api_ip and api_ip != "0.0.0.0":
+                return api_ip
+    except Exception:
+        pass
+    # 2. Fallback a la IP guardada localmente si la API no responde
+    cam_cfg = local_cfg.get(serial, {})
+    return cam_cfg.get("ip", "")
+
+
 def _stop_ffmpeg(serial: str) -> None:
     proc = _ffmpeg_procs.pop(serial, None)
     if proc and proc.poll() is None:
@@ -196,9 +212,11 @@ def get_hls_playlist(serial: str) -> FileResponse:
     if not cam_cfg:
         raise HTTPException(
             status_code=404,
-            detail=f"Falta configurar {serial} en cameras.local.json (ip y code).",
+            detail=f"Falta configurar {serial} en cameras.local.json.",
         )
-    ip = cam_cfg["ip"]
+    ip = _resolve_camera_ip(serial, local_cfg)
+    if not ip:
+        raise HTTPException(status_code=503, detail=f"No se pudo determinar la IP para {serial}")
     code = cam_cfg["code"]
     path = cam_cfg.get("rtsp_path", "/h264_stream")
     rtsp_url = f"rtsp://admin:{code}@{ip}:554{path}"
@@ -223,7 +241,9 @@ def get_playback_playlist(
             status_code=404,
             detail=f"Falta configurar {serial} en cameras.local.json.",
         )
-    ip = cam_cfg["ip"]
+    ip = _resolve_camera_ip(serial, local_cfg)
+    if not ip:
+        raise HTTPException(status_code=503, detail=f"No se pudo determinar la IP para {serial}")
     code = cam_cfg["code"]
     
     # Formatear a sintaxis Hikvision/ISAPI: YYYYMMDDTHHmmssZ
