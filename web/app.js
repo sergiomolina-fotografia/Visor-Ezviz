@@ -247,13 +247,39 @@ document.addEventListener("DOMContentLoaded", () => {
       const card = document.createElement("div");
       card.className = "record-card";
 
-      const tStart = rec.begin.split("T")[1] || rec.begin;
-      const tEnd = rec.end.split("T")[1] || rec.end;
+      const parseUtc = (s) => {
+        if (!s) return null;
+        const iso = s.endsWith("Z") ? s : s + "Z";
+        const d = new Date(iso);
+        return isNaN(d.getTime()) ? null : d;
+      };
+
+      const formatTime = (s) => {
+        const d = parseUtc(s);
+        if (!d) return s.split("T")[1] || s;
+        return [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, "0")).join(":");
+      };
+
+      const localStart = formatTime(rec.begin);
+      const localEnd = formatTime(rec.end);
+      const utcStart = rec.begin.split("T")[1] || "";
+
+      let durationText = "";
+      const bDate = parseUtc(rec.begin);
+      const eDate = parseUtc(rec.end);
+      if (bDate && eDate) {
+        const sec = Math.round((eDate.getTime() - bDate.getTime()) / 1000);
+        if (sec > 0) {
+          const m = Math.floor(sec / 60);
+          const s = sec % 60;
+          durationText = m > 0 ? `${m}m ${String(s).padStart(2, "0")}s` : `${s}s`;
+        }
+      }
 
       card.innerHTML = `
         <div class="record-time">
-          <span class="record-hour">🕒 ${tStart} ➔ ${tEnd}</span>
-          <span class="record-sub">Evento detectado por sensor</span>
+          <span class="record-hour">🕒 ${localStart} ➔ ${localEnd}</span>
+          <span class="record-sub">${durationText ? `⏱️ ${durationText} | ` : ""}Hora real local (UTC: ${utcStart})</span>
         </div>
         <span class="record-tag">${rec.type || "CLIP"}</span>
       `;

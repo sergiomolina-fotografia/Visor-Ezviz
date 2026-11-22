@@ -8,6 +8,8 @@
 
 **Hitos alcanzados y 100% validados en hardware real (LG 50UP7750PSB webOS 6.0, PC y Móvil):**
 - [x] **Video en directo fluido en 1080p** para ambas cámaras mediante decodificación por hardware nativo (`<video>` con HLS).
+- [x] **Horario real local y tarjetas con miniatura**: Conversión automática de timestamps UTC a la hora real local (UTC-3), cálculo de duración y tarjetas con miniatura gráfica/preview para cada evento de microSD.
+- [x] **Barra inferior de Registro del Sistema**: Panel de consola y estado en tiempo real reubicado en una barra inferior debajo del video principal, liberando el 100% del sidebar lateral para las grabaciones.
 - [x] **Web Dashboard para Exploración Remota**: Interfaz web moderna y responsiva servida en el puerto `8080` para PC, Mac, tablets y celulares (iPhone / Android) con `hls.js`.
 - [x] **Captura de Fotos HD instantáneas**: Disparo fotográfico en tiempo real desde los sensores con descarga directa (`/api/cameras/{serial}/snapshot`).
 - [x] **Cámara Galería (`H3c`)**: En vivo y reproducción completa de eventos grabados en la microSD vía RTSP con enrutamiento HLS dedicado (`/playback/live.m3u8`).
@@ -117,7 +119,7 @@ El servidor y la web quedarán disponibles en el puerto `8080`.
 El paquete compilado más reciente se encuentra en `dist/`:
 ```bash
 # Instalación estándar vía CLI de webOS:
-ares-install --device <nombre_tv> dist/com.manuel.ezviztv.test_0.1.1_all.ipk
+ares-install --device <nombre_tv> dist/com.manuel.ezviztv.test_0.1.2_all.ipk
 ares-launch --device <nombre_tv> com.manuel.ezviztv.test
 
 # O mediante el script automático para TVs rooteadas:

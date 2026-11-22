@@ -129,24 +129,58 @@
     startNativeHls(url, "En vivo: " + name);
   }
 
-  // === 3. CONSULTA Y REPRODUCCIÓN DE MICROSD ===
+  function pad2(n) {
+    return n < 10 ? "0" + n : "" + n;
+  }
+
+  function parseUtcDate(isoStr) {
+    if (!isoStr) return null;
+    var s = isoStr.endsWith("Z") ? isoStr : (isoStr + "Z");
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function formatRealLocalTime(isoStr) {
+    var d = parseUtcDate(isoStr);
+    if (!d) return isoStr.split("T")[1] || isoStr;
+    return pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds());
+  }
+
+  function formatRealLocalDate(isoStr) {
+    var d = parseUtcDate(isoStr);
+    if (!d) return "";
+    return pad2(d.getDate()) + "/" + pad2(d.getMonth() + 1);
+  }
+
+  function calculateDuration(beginStr, endStr) {
+    var b = parseUtcDate(beginStr);
+    var e = parseUtcDate(endStr);
+    if (!b || !e) return "";
+    var sec = Math.round((e.getTime() - b.getTime()) / 1000);
+    if (sec <= 0) return "";
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    if (m > 0) return m + "m " + (s < 10 ? "0" + s : s) + "s";
+    return s + "s";
+  }
+
   function getDateString(daysAgo) {
     var d = new Date();
     d.setDate(d.getDate() - daysAgo);
     var yyyy = d.getFullYear();
-    var mm = String(d.getMonth() + 1).padStart(2, "0");
-    var dd = String(d.getDate()).padStart(2, "0");
+    var mm = pad2(d.getMonth() + 1);
+    var dd = pad2(d.getDate());
     return yyyy + "-" + mm + "-" + dd;
   }
 
   function loadRecords(daysAgo) {
     selectedDaysAgo = daysAgo;
     var dateStr = getDateString(daysAgo);
-    recordsList.innerHTML = '<div style="color: #38bdf8; text-align: center; margin-top: 30px;">Buscando grabaciones del ' + dateStr + '...</div>';
+    recordsList.innerHTML = '<div style="color: #38bdf8; text-align: center; margin-top: 40px; font-size: 18px;">Buscando grabaciones del ' + dateStr + '...</div>';
     appendLog("info", ["Consultando grabaciones de", currentCamName, "en fecha", dateStr]);
 
     var xhr = new XMLHttpRequest();
-    xhr.open("GET", CONFIG.serverUrl + "/api/cameras/" + currentCam + "/records?date=" + dateStr + "&size=50");
+    xhr.open("GET", CONFIG.serverUrl + "/api/cameras/" + currentCam + "/records?date=" + dateStr + "&size=100");
     xhr.timeout = 10000;
     xhr.onload = function () {
       if (xhr.status === 200) {
@@ -169,11 +203,11 @@
   function renderRecords(records, dateStr) {
     recordsList.innerHTML = "";
     if (records.length === 0) {
-      recordsList.innerHTML = '<div style="color: #94a3b8; text-align: center; margin-top: 30px;">No hay eventos grabados el ' + dateStr + '</div>';
+      recordsList.innerHTML = '<div style="color: #94a3b8; text-align: center; margin-top: 50px; font-size: 18px;">No hay eventos grabados el ' + dateStr + '</div>';
       return;
     }
 
-    appendLog("ok", ["Encontradas " + records.length + " grabaciones"]);
+    appendLog("ok", ["Encontradas " + records.length + " grabaciones (Hora real convertida a tu zona horaria)"]);
     recordItems = [];
 
     records.forEach(function (rec, index) {
@@ -181,13 +215,31 @@
       item.className = "record-item";
       item.tabIndex = 0;
       
-      var tStart = rec.begin.split("T")[1] || rec.begin;
-      var tEnd = rec.end.split("T")[1] || rec.end;
-      
-      item.innerHTML = '<span>🕒 ' + tStart + ' - ' + tEnd + '</span><span class="tag">' + (rec.type || "CLIP") + '</span>';
+      var localStart = formatRealLocalTime(rec.begin);
+      var localEnd = formatRealLocalTime(rec.end);
+      var localDate = formatRealLocalDate(rec.begin);
+      var duration = calculateDuration(rec.begin, rec.end);
+      var utcStart = rec.begin.split("T")[1] || "";
+
+      var tagLabel = rec.type === "ALARM" ? "🚨 MOVIMIENTO" : (rec.type || "CLIP");
+
+      item.innerHTML = 
+        '<div class="record-thumb">' +
+          '<span class="thumb-tag">' + (rec.type || "REC") + '</span>' +
+          '<span class="play-icon">▶</span>' +
+          (duration ? '<span class="thumb-dur">' + duration + '</span>' : '') +
+        '</div>' +
+        '<div class="record-info">' +
+          '<div class="record-time-real">' + localStart + ' ➔ ' + localEnd + '</div>' +
+          '<div class="record-meta-row">' +
+            '<span class="badge-alarm">' + tagLabel + '</span>' +
+            (localDate ? '<span>📅 ' + localDate + '</span>' : '') +
+            '<span class="badge-utc-hint">UTC: ' + utcStart + '</span>' +
+          '</div>' +
+        '</div>';
       
       item.addEventListener("click", function () {
-        playRecordClip(rec);
+        playRecordClip(rec, localStart, localEnd);
       });
 
       recordsList.appendChild(item);
@@ -200,16 +252,17 @@
     });
   }
 
-  function playRecordClip(rec) {
-    var tStart = rec.begin.split("T")[1] || rec.begin;
-    var tEnd = rec.end.split("T")[1] || rec.end;
-    appendLog("ok", ["Cargando grabación: " + tStart + " a " + tEnd]);
+  function playRecordClip(rec, localStart, localEnd) {
+    var lStart = localStart || formatRealLocalTime(rec.begin);
+    var lEnd = localEnd || formatRealLocalTime(rec.end);
+    var utcStart = rec.begin.split("T")[1] || rec.begin;
+    appendLog("ok", ["Reproduciendo grabación: " + lStart + " a " + lEnd + " (Hora real) [UTC: " + utcStart + "]"]);
     var b = rec.begin.replace(/[-:]/g, "");
     if (!b.endsWith("Z")) b += "Z";
     var e = rec.end.replace(/[-:]/g, "");
     if (!e.endsWith("Z")) e += "Z";
     var url = CONFIG.serverUrl + "/api/stream/" + currentCam + "/playback/live.m3u8?begin=" + b + "&end=" + e;
-    startNativeHls(url, "microSD " + currentCamName + " " + tStart);
+    startNativeHls(url, "microSD " + currentCamName + " " + lStart);
   }
 
   // === 4. NAVEGACIÓN Y CONTROL REMOTO ===
