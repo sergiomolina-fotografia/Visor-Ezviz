@@ -94,13 +94,18 @@ La aplicación de Smart TV está diseñada para ser utilizada con el control rem
 
 | Tecla / Botón | Acción |
 | :--- | :--- |
-| **Tecla [5]** | Transmisión en directo: **Galería (`H3c`)** |
-| **Tecla [6]** | Transmisión en directo: **Living (`C3TN`)** |
-| **Tecla [R]** | Consultar grabaciones de la microSD para la cámara seleccionada |
-| **Flechas ⬅️ ➡️ ⬆️ ⬇️** | Navegar entre controles, selector de fechas y lista de clips grabados |
+| **Tecla [1]** | Transmisión en directo: **Galería (`H3c`)** |
+| **Tecla [2]** | Transmisión en directo: **Living (`C3TN`)** |
+| **Tecla [4]** (o `[R]`) | Consultar grabaciones de la microSD para la cámara seleccionada |
+| **Tecla [5]** | Detener reproducción actual |
+| **Tecla [6]** | Limpiar panel de eventos y registro |
+| **Tecla [7]** | Cargar grabaciones de **Hoy** |
+| **Tecla [8]** | Cargar grabaciones de **Ayer** |
+| **Tecla [9]** | Cargar grabaciones de **Hace 2 días** |
+| **Tecla [CH+]** | Siguiente clip de grabación (o alternar cámara en vivo) |
+| **Tecla [CH-]** | Anterior clip de grabación (o alternar cámara en vivo) |
+| **Flechas ⬅️ ➡️ ⬆️ ⬇️** | Navegar entre controles, selector de fechas y cuadrícula 2D de grabaciones |
 | **Tecla [OK] / Enter** | Seleccionar cámara, cambiar fecha o reproducir el evento elegido |
-| **Tecla [3]** | Detener reproducción actual |
-| **Tecla [4]** | Limpiar panel de eventos y registro |
 | **Tecla [Back]** | Salir limpiamente de la aplicación |
 
 ---

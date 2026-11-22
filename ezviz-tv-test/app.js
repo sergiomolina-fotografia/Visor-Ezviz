@@ -275,15 +275,56 @@
     else if (action === "clear") { logPanel.innerHTML = ""; appendLog("ok", ["Registro limpiado"]); }
   }
 
+  function handleNext() {
+    if (recordItems && recordItems.length > 0) {
+      focusZone = "records";
+      if (focusIdx < recordItems.length - 1) {
+        focusIdx++;
+      }
+      updateFocus();
+      appendLog("info", ["Clip siguiente (" + (focusIdx + 1) + "/" + recordItems.length + ")"]);
+      if (recordItems[focusIdx]) recordItems[focusIdx].click();
+    } else {
+      if (currentCam === CONFIG.cam1Serial) {
+        playLive(CONFIG.cam2Serial, "Living");
+      } else {
+        playLive(CONFIG.cam1Serial, "Galería");
+      }
+    }
+  }
+
+  function handlePrev() {
+    if (recordItems && recordItems.length > 0) {
+      focusZone = "records";
+      if (focusIdx > 0) {
+        focusIdx--;
+      }
+      updateFocus();
+      appendLog("info", ["Clip anterior (" + (focusIdx + 1) + "/" + recordItems.length + ")"]);
+      if (recordItems[focusIdx]) recordItems[focusIdx].click();
+    } else {
+      if (currentCam === CONFIG.cam2Serial) {
+        playLive(CONFIG.cam1Serial, "Galería");
+      } else {
+        playLive(CONFIG.cam2Serial, "Living");
+      }
+    }
+  }
+
   document.addEventListener("keydown", function (ev) {
     var code = ev.keyCode;
 
-    // Atajos directos numéricos en cualquier momento
-    if (code === 53) { playLive(CONFIG.cam1Serial, "Galería"); return; } // Tecla 5
-    if (code === 54) { playLive(CONFIG.cam2Serial, "Living"); return; }  // Tecla 6
-    if (code === 51) { handleAction("stop"); return; }                   // Tecla 3
-    if (code === 52) { handleAction("clear"); return; }                  // Tecla 4
-    if (code === 82) { loadRecords(selectedDaysAgo); return; }           // Tecla R
+    // Remapeo de atajos numéricos y canales del control remoto
+    if (code === 49) { playLive(CONFIG.cam1Serial, "Galería"); return; }             // [1] Galería
+    if (code === 50) { playLive(CONFIG.cam2Serial, "Living"); return; }              // [2] Living
+    if (code === 52 || code === 82) { loadRecords(selectedDaysAgo); return; }        // [4] Grabaciones (o R)
+    if (code === 53) { handleAction("stop"); return; }                               // [5] Detener
+    if (code === 54) { handleAction("clear"); return; }                              // [6] Limpiar
+    if (code === 55) { loadRecords(0); return; }                                     // [7] Hoy
+    if (code === 56) { loadRecords(1); return; }                                     // [8] Ayer
+    if (code === 57) { loadRecords(2); return; }                                     // [9] Hace dos días
+    if (code === 33 || code === 427 || ev.key === "ChannelUp") { handleNext(); return; } // [CH+] Siguiente
+    if (code === 34 || code === 428 || ev.key === "ChannelDown") { handlePrev(); return; } // [CH-] Anterior
 
     // Tecla BACK de webOS (461) o Escape
     if (code === 461 || code === 27) {
@@ -385,7 +426,7 @@
     });
 
     updateFocus();
-    appendLog("ok", ["EZVIZ TV iniciado - webOS 6.0 listo"]);
+    appendLog("ok", ["EZVIZ TV listo: [1]Galería [2]Living [4]Grabaciones [5]Detener [6]Limpiar [7..9]Fechas [CH+/-]Sig/Ant"]);
     appendLog("info", ["Servidor configurado en: " + CONFIG.serverUrl]);
   });
 })();
