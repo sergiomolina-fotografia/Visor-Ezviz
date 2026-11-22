@@ -13,7 +13,7 @@
 - [x] **Horario real nativo (Mendoza, Argentina UTC-3)**: Sincronización exacta con el reloj interno de las cámaras sin desfases horarios, tarjetas compactas con miniatura gráfica/preview para cada evento de microSD y visualización limpia sin saturación de duración.
 - [x] **Transcodificación robusta de grabaciones (HEVC/H.265 a HLS)**: Estabilización con `-fflags +genpts+discardcorrupt`, remuxing de audio adaptativo (`-af aresample=async=1000`) y cola extendida para reproducción ininterrumpida de clips microSD.
 - [x] **Barra inferior de Registro del Sistema**: Panel de consola y estado en tiempo real reubicado en una barra inferior debajo del video principal, liberando el 100% del sidebar lateral para las grabaciones.
-- [x] **Web Dashboard para Exploración Remota**: Interfaz web moderna y responsiva servida en el puerto `8080` para PC, Mac, tablets y celulares (iPhone / Android) con `hls.js`.
+- [x] **Web Dashboard con Entorno Gráfico Unificado**: Interfaz web moderna y responsiva (PC, Mac, tablets y celulares) con el mismo entorno visual de la Smart TV LG: reproductor 16:9, botonera rápida con atajos (`[1..9]`, `[CH+/-]`), panel de consola en vivo y galería microSD en 2 columnas.
 - [x] **Captura de Fotos HD instantáneas**: Disparo fotográfico en tiempo real desde los sensores con descarga directa (`/api/cameras/{serial}/snapshot`).
 - [x] **Cámara Galería (`H3c`)**: En vivo y reproducción completa de eventos grabados en la microSD vía RTSP con enrutamiento HLS dedicado (`/playback/live.m3u8`).
 - [x] **Cámara Living (`C3TN`)**: En vivo fluido en 1080p por RTSP local y consulta de registros microSD.

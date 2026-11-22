@@ -1,35 +1,45 @@
-// EZVIZ TV Web — Exploración Remota & Dashboard
+// EZVIZ TV Web — Exploración Remota & Entorno Gráfico Unificado (Idéntico a la TV)
 document.addEventListener("DOMContentLoaded", () => {
   let cameras = [];
   let currentCam = null;
   let hlsPlayer = null;
+  let selectedDaysAgo = 0;
   let selectedDate = getFormattedDate(0);
+  let recordItems = [];
+  let currentFocusIdx = 0;
 
   // Elementos DOM
-  const cameraButtons = document.getElementById("camera-buttons");
   const mainVideo = document.getElementById("main-video");
   const videoOverlay = document.getElementById("video-overlay");
   const overlayMsg = document.getElementById("overlay-msg");
   const liveBadge = document.getElementById("live-badge");
-  const currentStreamName = document.getElementById("current-stream-name");
-  const streamMeta = document.getElementById("stream-meta");
-  const recordsCamName = document.getElementById("records-cam-name");
+  const statusBar = document.getElementById("status-bar");
+  const recordsCamLabel = document.getElementById("records-cam-label");
   const recordsList = document.getElementById("records-list");
-  const dateShortcuts = document.getElementById("date-shortcuts");
+  const logPanel = document.getElementById("log-panel");
   const customDateInput = document.getElementById("custom-date");
+
+  // Botones de cámara y acción
+  const btnCam1 = document.getElementById("btn-cam1");
+  const btnCam2 = document.getElementById("btn-cam2");
+  const btnLoadRecords = document.getElementById("btn-load-records");
+  const btnStop = document.getElementById("btn-stop");
+  const btnClear = document.getElementById("btn-clear");
+  const btnSnapshot = document.getElementById("btn-snapshot");
+  const btnFullscreen = document.getElementById("btn-fullscreen");
+  const btnRemoteInfo = document.getElementById("btn-remote-info");
+
+  // Botones de fecha
+  const dateButtons = [
+    document.getElementById("btn-date-today"),
+    document.getElementById("btn-date-yesterday"),
+    document.getElementById("btn-date-prev"),
+  ];
 
   // Telemetría
   const camIp = document.getElementById("cam-ip");
   const camModel = document.getElementById("cam-model");
   const camOnline = document.getElementById("cam-online");
-  const serverStatus = document.getElementById("server-status");
-  const statusText = document.getElementById("status-text");
-
-  // Botones de control
-  const btnSnapshot = document.getElementById("btn-snapshot");
-  const btnFullscreen = document.getElementById("btn-fullscreen");
-  const btnStop = document.getElementById("btn-stop");
-  const btnRemoteInfo = document.getElementById("btn-remote-info");
 
   // Modales
   const snapshotModal = document.getElementById("snapshot-modal");
@@ -45,15 +55,45 @@ document.addEventListener("DOMContentLoaded", () => {
   const remoteBackdrop = document.getElementById("remote-backdrop");
   const lanUrlDisplay = document.getElementById("lan-url-display");
 
-  // Actualizar URL local en la guía
   if (lanUrlDisplay) {
     lanUrlDisplay.textContent = window.location.origin;
+  }
+
+  // === REGISTRO DEL SISTEMA (IDÉNTICO A LA TV) ===
+  function pad2(n) {
+    return n < 10 ? "0" + n : "" + n;
+  }
+
+  function appendLog(type, parts) {
+    if (!logPanel) return;
+    const now = new Date();
+    const timeStr = pad2(now.getHours()) + ":" + pad2(now.getMinutes()) + ":" + pad2(now.getSeconds());
+    const line = document.createElement("div");
+    line.className = "log-" + type;
+    const prefix = type === "ok" ? "[OK]" : type === "error" ? "[ERR]" : type === "warn" ? "[WARN]" : "[INFO]";
+    const text = Array.isArray(parts) ? parts.join(" ") : parts;
+    line.textContent = timeStr + " " + prefix + " " + text;
+    logPanel.appendChild(line);
+    logPanel.scrollTop = logPanel.scrollHeight;
+  }
+
+  function formatRealLocalTime(isoStr) {
+    if (!isoStr) return "";
+    const t = isoStr.includes("T") ? isoStr.split("T")[1] : (isoStr.includes(" ") ? isoStr.split(" ")[1] : isoStr);
+    return t.replace("Z", "").slice(0, 8);
+  }
+
+  function getFormattedDate(daysAgo) {
+    const d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
   }
 
   // === 1. INICIALIZACIÓN ===
   initApp();
 
   async function initApp() {
+    appendLog("ok", ["EZVIZ TV Web iniciado - Entorno unificado listo"]);
     setOverlay(true, "Cargando cámaras disponibles...");
     try {
       const res = await fetch("/api/cameras");
@@ -63,62 +103,60 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (cameras.length === 0) {
         setOverlay(true, "No se encontraron cámaras configuradas.");
+        appendLog("error", ["No se encontraron cámaras configuradas en el servidor"]);
         return;
       }
 
-      renderCameraButtons();
+      appendLog("ok", ["Cámaras detectadas: " + cameras.map((c) => (c.name || c.serial) + " (" + c.model + ")").join(", ")]);
+
+      // Asociar cámaras a botones fijos [1] y [2]
+      if (cameras[0]) {
+        btnCam1.textContent = "[1] " + (cameras[0].name || "Cámara 1") + " (" + (cameras[0].model || "H3c") + ")";
+      }
+      if (cameras[1]) {
+        btnCam2.textContent = "[2] " + (cameras[1].name || "Cámara 2") + " (" + (cameras[1].model || "C3TN") + ")";
+      }
+
       // Seleccionar por defecto la primera cámara (Galería)
       selectCamera(cameras[0]);
     } catch (err) {
       console.error("Error al cargar cámaras:", err);
       setOverlay(true, "No se pudo conectar con el servidor local. Verifique que uvicorn esté corriendo.");
-      statusText.textContent = "Desconectado";
-      serverStatus.querySelector(".status-dot").classList.remove("online");
+      appendLog("error", ["Fallo de conexión con servidor local:", err.message]);
+      statusBar.textContent = "Desconectado | Error de red";
     }
   }
 
-  function renderCameraButtons() {
-    cameraButtons.innerHTML = "";
-    cameras.forEach((cam) => {
-      const btn = document.createElement("button");
-      btn.className = "cam-btn";
-      btn.id = "btn-cam-" + cam.serial;
-      btn.innerHTML = `<span>📹 ${cam.name || cam.serial}</span><span class="badge">${cam.model || "Cam"}</span>`;
-      btn.addEventListener("click", () => {
-        selectCamera(cam);
-      });
-      cameraButtons.appendChild(btn);
-    });
-  }
-
   function selectCamera(cam) {
+    if (!cam) return;
     currentCam = cam;
-    document.querySelectorAll(".cam-btn").forEach((b) => b.classList.remove("active"));
-    const activeBtn = document.getElementById("btn-cam-" + cam.serial);
-    if (activeBtn) activeBtn.classList.add("active");
 
-    currentStreamName.textContent = cam.name || cam.serial;
-    recordsCamName.textContent = cam.name || cam.serial;
+    btnCam1.classList.toggle("active-cam", cameras[0] && cameras[0].serial === cam.serial);
+    btnCam2.classList.toggle("active-cam", cameras[1] && cameras[1].serial === cam.serial);
+
+    recordsCamLabel.textContent = cam.name || cam.serial;
+    statusBar.textContent = "Conectado | " + (cam.name || cam.serial) + " (1080p)";
 
     // Actualizar telemetría
-    camIp.textContent = cam.local_ip || "DHCP";
-    camModel.textContent = cam.model || "EZVIZ";
-    camOnline.textContent = cam.online ? "Online" : "Offline";
-    camOnline.style.color = cam.online ? "var(--success)" : "var(--danger)";
+    camIp.textContent = "IP: " + (cam.local_ip || "DHCP");
+    camModel.textContent = "Modelo: " + (cam.model || "EZVIZ");
+    camOnline.textContent = "Estado: " + (cam.online ? "Online" : "Offline");
+    camOnline.style.color = cam.online ? "#4ade80" : "#f87171";
 
-    // Iniciar vivo automáticamente
+    appendLog("info", ["Cámara seleccionada:", cam.name || cam.serial, "IP:", cam.local_ip || "Auto"]);
+
+    // Iniciar transmisión en vivo
     playLiveStream();
 
     // Cargar grabaciones de la fecha activa
-    loadRecords(selectedDate);
+    loadRecords(selectedDaysAgo);
   }
 
-  // === 2. REPRODUCCIÓN HLS (EN VIVO Y MICROSD) ===
+  // === 2. REPRODUCCIÓN HLS ===
   function playStreamUrl(url, label, isLive = true) {
     destroyPlayer();
     setOverlay(true, "Conectando señal de video...");
     liveBadge.classList.toggle("visible", isLive);
-    streamMeta.textContent = isLive ? "1080p En Vivo" : "Grabación microSD";
 
     if (Hls.isSupported()) {
       hlsPlayer = new Hls({
@@ -133,6 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
       hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
         setOverlay(false);
         mainVideo.play().catch((e) => console.warn("Autoplay bloqueado:", e));
+        appendLog("ok", [label, "- Señal HLS establecida"]);
       });
 
       hlsPlayer.on(Hls.Events.ERROR, (event, data) => {
@@ -140,8 +179,10 @@ document.addEventListener("DOMContentLoaded", () => {
           console.error("Error fatal en Hls.js:", data);
           if (currentCam && currentCam.model === "C3TN" && url.includes("playback")) {
             setOverlay(true, "Nota: El modelo C3TN no expone reproducción directa de microSD por firmware.");
+            appendLog("warn", ["El modelo C3TN no permite reproducción directa RTSP de microSD"]);
           } else {
             setOverlay(true, "Error al reproducir el flujo de video (" + data.details + ")");
+            appendLog("error", ["Fallo HLS:", data.details]);
           }
           destroyPlayer();
         }
@@ -152,25 +193,31 @@ document.addEventListener("DOMContentLoaded", () => {
       mainVideo.addEventListener("loadedmetadata", () => {
         setOverlay(false);
         mainVideo.play().catch((e) => console.warn("Autoplay Safari:", e));
+        appendLog("ok", [label, "- Señal Safari nativa"]);
       });
       mainVideo.addEventListener("error", () => {
         setOverlay(true, "Fallo al cargar video en el navegador.");
+        appendLog("error", ["Error en reproductor nativo del navegador"]);
       });
     } else {
       setOverlay(true, "Tu navegador no soporta reproducción HLS.");
+      appendLog("error", ["Navegador sin soporte HLS"]);
     }
   }
 
   function playLiveStream() {
     if (!currentCam) return;
     const url = `/api/stream/${currentCam.serial}/live.m3u8`;
-    playStreamUrl(url, "En Vivo", true);
+    appendLog("info", ["Iniciando video en vivo:", currentCam.name || currentCam.serial]);
+    playStreamUrl(url, "En Vivo " + (currentCam.name || currentCam.serial), true);
   }
 
-  function playRecordClip(rec) {
+  function playRecordClip(rec, localStart, localEnd) {
     if (!currentCam) return;
-    const tStart = rec.begin.split("T")[1] || rec.begin;
-    const tEnd = rec.end.split("T")[1] || rec.end;
+    const lStart = localStart || formatRealLocalTime(rec.begin);
+    const lEnd = localEnd || formatRealLocalTime(rec.end);
+
+    appendLog("ok", ["Reproduciendo grabación: " + lStart + " a " + lEnd + " (Hora Mendoza)"]);
 
     let b = rec.begin.replace(/[-:]/g, "");
     if (!b.endsWith("Z")) b += "Z";
@@ -178,7 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!e.endsWith("Z")) e += "Z";
 
     const url = `/api/stream/${currentCam.serial}/playback/live.m3u8?begin=${b}&end=${e}`;
-    playStreamUrl(url, `microSD ${tStart} - ${tEnd}`, false);
+    playStreamUrl(url, `microSD ${currentCam.name || currentCam.serial} ${lStart}`, false);
   }
 
   function destroyPlayer() {
@@ -200,115 +247,199 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // === 3. EXPLORADOR DE GRABACIONES MICROSD ===
-  function getFormattedDate(daysAgo) {
-    const d = new Date();
-    d.setDate(d.getDate() - daysAgo);
-    return d.toISOString().split("T")[0];
-  }
+  // === 3. GRABACIONES MICROSD EN 2 COLUMNAS (IDÉNTICO A LA TV) ===
+  async function loadRecords(daysAgoOrDateStr) {
+    let dateStr;
+    if (typeof daysAgoOrDateStr === "number") {
+      selectedDaysAgo = daysAgoOrDateStr;
+      dateStr = getFormattedDate(daysAgoOrDateStr);
+    } else {
+      dateStr = daysAgoOrDateStr;
+    }
 
-  async function loadRecords(dateStr) {
     selectedDate = dateStr;
-    customDateInput.value = dateStr;
+    if (customDateInput) customDateInput.value = dateStr;
+
+    // Actualizar botones de fechas
+    dateButtons.forEach((btn, idx) => {
+      if (btn) btn.classList.toggle("active-date", typeof daysAgoOrDateStr === "number" && idx === daysAgoOrDateStr);
+    });
+
     recordsList.innerHTML = `
-      <div class="empty-state">
-        <div class="spinner" style="margin: 0 auto 10px auto;"></div>
-        <p>Buscando grabaciones del ${dateStr}...</p>
+      <div style="color: #38bdf8; text-align: center; margin-top: 40px; font-size: 16px; grid-column: 1 / -1;">
+        <div class="spinner" style="margin: 0 auto 12px auto;"></div>
+        Buscando grabaciones del ${dateStr}...
       </div>`;
+
+    appendLog("info", ["Consultando grabaciones de", currentCam ? (currentCam.name || currentCam.serial) : "cámara", "en fecha", dateStr]);
 
     if (!currentCam) return;
 
     try {
-      const res = await fetch(`/api/cameras/${currentCam.serial}/records?date=${dateStr}&size=60`);
+      const res = await fetch(`/api/cameras/${currentCam.serial}/records?date=${dateStr}&limit=500`);
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
-      renderRecords(data.records || []);
+      renderRecords(data.records || [], dateStr);
     } catch (err) {
       console.error("Error al obtener grabaciones:", err);
       recordsList.innerHTML = `
-        <div class="empty-state" style="color: var(--danger);">
-          <p>Error al consultar las grabaciones en la cámara.</p>
+        <div style="color: #f87171; text-align: center; margin-top: 40px; grid-column: 1 / -1;">
+          Error al consultar grabaciones en la cámara (${err.message})
         </div>`;
+      appendLog("error", ["Fallo al consultar grabaciones microSD:", err.message]);
     }
   }
 
-  function renderRecords(records) {
+  function renderRecords(records, dateStr) {
     recordsList.innerHTML = "";
+    recordItems = [];
 
     if (records.length === 0) {
       recordsList.innerHTML = `
-        <div class="empty-state">
-          <p>No se encontraron eventos grabados para esta fecha en la tarjeta microSD.</p>
+        <div style="color: #94a3b8; text-align: center; margin-top: 50px; font-size: 16px; grid-column: 1 / -1;">
+          No hay eventos grabados el ${dateStr}
         </div>`;
+      appendLog("info", ["No se encontraron eventos grabados el " + dateStr]);
       return;
     }
 
-    records.forEach((rec) => {
-      const card = document.createElement("div");
-      card.className = "record-card";
+    appendLog("ok", ["Encontradas " + records.length + " grabaciones (Hora Mendoza UTC-3)"]);
 
-      const formatTime = (s) => {
-        if (!s) return "";
-        const t = s.includes("T") ? s.split("T")[1] : (s.includes(" ") ? s.split(" ")[1] : s);
-        return t.replace("Z", "").slice(0, 8);
-      };
+    // Orden descendente (más recientes arriba)
+    const sortedRecords = records.slice().reverse();
 
-      const localStart = formatTime(rec.begin);
-      const localEnd = formatTime(rec.end);
+    sortedRecords.forEach((rec, index) => {
+      const item = document.createElement("div");
+      item.className = "record-item";
+      item.tabIndex = 0;
 
-      let durationText = "";
-      if (rec.begin && rec.end) {
-        const bParts = rec.begin.replace("T", " ").split(/[- :]/);
-        const eParts = rec.end.replace("T", " ").split(/[- :]/);
-        if (bParts.length >= 6 && eParts.length >= 6) {
-          const bDate = new Date(bParts[0], bParts[1] - 1, bParts[2], bParts[3], bParts[4], bParts[5]);
-          const eDate = new Date(eParts[0], eParts[1] - 1, eParts[2], eParts[3], eParts[4], eParts[5]);
-          const sec = Math.round((eDate.getTime() - bDate.getTime()) / 1000);
-          if (sec > 0) {
-            const m = Math.floor(sec / 60);
-            const s = sec % 60;
-            durationText = m > 0 ? `${m}m ${String(s).padStart(2, "0")}s` : `${s}s`;
-          }
-        }
-      }
+      const localStart = formatRealLocalTime(rec.begin);
+      const localEnd = formatRealLocalTime(rec.end);
+      const isAlarm = rec.type === "ALARM";
 
-      card.innerHTML = `
-        <div class="record-time">
-          <span class="record-hour">🕒 ${localStart} ➔ ${localEnd}</span>
-          <span class="record-sub">${durationText ? `⏱️ ${durationText} | ` : ""}Hora Mendoza</span>
+      item.innerHTML = `
+        <div class="record-thumb">
+          <span class="thumb-tag">${isAlarm ? "ALERTA" : "REC"}</span>
+          <span class="play-icon">▶</span>
         </div>
-        <span class="record-tag">${rec.type || "CLIP"}</span>
+        <div class="record-info">
+          <div class="record-time-real">${localStart}</div>
+          <div class="record-sub-real">${localStart.slice(0, 5)} a ${localEnd.slice(0, 5)}</div>
+        </div>
       `;
 
-      card.addEventListener("click", () => {
-        document.querySelectorAll(".record-card").forEach((c) => c.classList.remove("active"));
-        card.classList.add("active");
-        playRecordClip(rec);
+      item.addEventListener("click", () => {
+        document.querySelectorAll(".record-item").forEach((it) => it.classList.remove("focused"));
+        item.classList.add("focused");
+        currentFocusIdx = index;
+        playRecordClip(rec, localStart, localEnd);
       });
 
-      recordsList.appendChild(card);
+      recordsList.appendChild(item);
+      recordItems.push(item);
     });
   }
 
-  // Shortcuts de fecha
-  dateShortcuts.querySelectorAll(".date-tab").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      dateShortcuts.querySelectorAll(".date-tab").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      const days = parseInt(btn.dataset.days, 10);
-      loadRecords(getFormattedDate(days));
-    });
+  // === 4. NAVEGACIÓN SECUENCIAL (CH+ / CH-) ===
+  function goChannelUp() {
+    if (recordItems && recordItems.length > 0) {
+      if (currentFocusIdx > 0) {
+        currentFocusIdx--;
+      }
+      updateFocusRecord();
+      appendLog("info", ["CH+ Clip siguiente (" + (currentFocusIdx + 1) + "/" + recordItems.length + ")"]);
+      if (recordItems[currentFocusIdx]) recordItems[currentFocusIdx].click();
+    } else {
+      if (cameras.length > 1) {
+        const nextCam = currentCam === cameras[0] ? cameras[1] : cameras[0];
+        selectCamera(nextCam);
+      }
+    }
+  }
+
+  function goChannelDown() {
+    if (recordItems && recordItems.length > 0) {
+      if (currentFocusIdx < recordItems.length - 1) {
+        currentFocusIdx++;
+      }
+      updateFocusRecord();
+      appendLog("info", ["CH- Clip anterior (" + (currentFocusIdx + 1) + "/" + recordItems.length + ")"]);
+      if (recordItems[currentFocusIdx]) recordItems[currentFocusIdx].click();
+    } else {
+      if (cameras.length > 1) {
+        const prevCam = currentCam === cameras[1] ? cameras[0] : cameras[1];
+        selectCamera(prevCam);
+      }
+    }
+  }
+
+  function updateFocusRecord() {
+    document.querySelectorAll(".record-item").forEach((it) => it.classList.remove("focused"));
+    if (recordItems[currentFocusIdx]) {
+      recordItems[currentFocusIdx].classList.add("focused");
+      recordItems[currentFocusIdx].scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }
+
+  // === 5. EVENT LISTENERS DE CONTROLES ===
+  btnCam1.addEventListener("click", () => {
+    if (cameras[0]) selectCamera(cameras[0]);
   });
 
-  // Selector de fecha personalizada
-  customDateInput.addEventListener("change", (e) => {
-    if (e.target.value) {
-      dateShortcuts.querySelectorAll(".date-tab").forEach((b) => b.classList.remove("active"));
-      loadRecords(e.target.value);
+  btnCam2.addEventListener("click", () => {
+    if (cameras[1]) selectCamera(cameras[1]);
+  });
+
+  btnLoadRecords.addEventListener("click", () => {
+    loadRecords(selectedDaysAgo);
+  });
+
+  btnStop.addEventListener("click", async () => {
+    destroyPlayer();
+    setOverlay(true, "Transmisión detenida por el usuario");
+    liveBadge.classList.remove("visible");
+    appendLog("info", ["Reproductor detenido"]);
+    if (currentCam) {
+      try {
+        await fetch(`/api/stream/${currentCam.serial}/stop`, { method: "POST" });
+      } catch (e) {}
     }
   });
 
-  // === 4. CAPTURA DE FOTOS SNAPSHOT ===
+  btnClear.addEventListener("click", () => {
+    logPanel.innerHTML = "";
+    appendLog("ok", ["Registro limpiado"]);
+  });
+
+  btnFullscreen.addEventListener("click", () => {
+    const box = document.getElementById("video-container");
+    if (!document.fullscreenElement) {
+      if (box.requestFullscreen) box.requestFullscreen();
+      else if (box.webkitRequestFullscreen) box.webkitRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+    }
+  });
+
+  // Selector de botones de fecha
+  dateButtons.forEach((btn, idx) => {
+    if (btn) {
+      btn.addEventListener("click", () => {
+        loadRecords(idx);
+      });
+    }
+  });
+
+  // Selector de fecha personalizada
+  if (customDateInput) {
+    customDateInput.addEventListener("change", (e) => {
+      if (e.target.value) {
+        loadRecords(e.target.value);
+      }
+    });
+  }
+
+  // === 6. CAPTURA DE FOTOS SNAPSHOT ===
   btnSnapshot.addEventListener("click", async () => {
     if (!currentCam) return;
     openModal(snapshotModal);
@@ -331,42 +462,25 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
       btnDownloadSnap.href = data.picUrl;
       btnDownloadSnap.style.display = "inline-flex";
+      appendLog("ok", ["Foto HD capturada con éxito"]);
     } catch (err) {
       console.error("Error al capturar foto:", err);
       snapshotContent.innerHTML = `
         <div style="color: var(--danger); text-align: center; padding: 20px;">
           <p>No se pudo capturar la foto en este momento: ${err.message}</p>
         </div>`;
+      appendLog("error", ["Fallo captura snapshot:", err.message]);
     }
   });
 
-  // === 5. CONTROLES DEL REPRODUCTOR ===
-  btnStop.addEventListener("click", async () => {
-    destroyPlayer();
-    setOverlay(true, "Transmisión detenida por el usuario");
-    liveBadge.classList.remove("visible");
-    if (currentCam) {
-      try {
-        await fetch(`/api/stream/${currentCam.serial}/stop`, { method: "POST" });
-      } catch (e) {}
-    }
-  });
-
-  btnFullscreen.addEventListener("click", () => {
-    const box = document.getElementById("video-box");
-    if (!document.fullscreenElement) {
-      if (box.requestFullscreen) box.requestFullscreen();
-      else if (box.webkitRequestFullscreen) box.webkitRequestFullscreen();
-    } else {
-      if (document.exitFullscreen) document.exitFullscreen();
-    }
-  });
-
-  // === 6. MODALES ===
+  // === 7. MODALES ===
   function openModal(modal) {
+    modal.classList.add("visible");
     modal.classList.add("open");
   }
+
   function closeModalFunc(modal) {
+    modal.classList.remove("visible");
     modal.classList.remove("open");
   }
 
@@ -378,4 +492,24 @@ document.addEventListener("DOMContentLoaded", () => {
   closeRemoteModal.addEventListener("click", () => closeModalFunc(remoteModal));
   btnCloseRemote.addEventListener("click", () => closeModalFunc(remoteModal));
   remoteBackdrop.addEventListener("click", () => closeModalFunc(remoteModal));
+
+  // === 8. ATAJOS DE TECLADO (IDÉNTICOS AL CONTROL REMOTO DE LA TV) ===
+  document.addEventListener("keydown", (ev) => {
+    // Ignorar teclas si se escribe en un input
+    if (ev.target.tagName === "INPUT" || ev.target.tagName === "TEXTAREA") return;
+
+    const code = ev.keyCode;
+
+    if (code === 49) { if (cameras[0]) selectCamera(cameras[0]); return; }           // [1] Galería
+    if (code === 50) { if (cameras[1]) selectCamera(cameras[1]); return; }           // [2] Living
+    if (code === 52 || code === 82) { loadRecords(selectedDaysAgo); return; }        // [4] Grabaciones o R
+    if (code === 53) { btnStop.click(); return; }                                   // [5] Detener
+    if (code === 54) { btnClear.click(); return; }                                  // [6] Limpiar
+    if (code === 55) { loadRecords(0); return; }                                     // [7] Hoy
+    if (code === 56) { loadRecords(1); return; }                                     // [8] Ayer
+    if (code === 57) { loadRecords(2); return; }                                     // [9] Hace dos días
+    if (code === 33 || code === 427 || ev.key === "ChannelUp") { goChannelUp(); return; }   // [CH+] Siguiente
+    if (code === 34 || code === 428 || ev.key === "ChannelDown") { goChannelDown(); return; } // [CH-] Anterior
+    if (code === 27) { btnStop.click(); return; }                                    // Escape
+  });
 });

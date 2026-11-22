@@ -10,106 +10,85 @@
   <script src="js/hls.min.js"></script>
 </head>
 <body>
-  <div class="app-layout">
-    <!-- BARRA SUPERIOR -->
-    <header class="header">
-      <div class="logo-group">
-        <img src="/assets/web/favicon-32.png" alt="EZVIZ TV" class="logo-icon">
-        <div>
-          <h1 class="app-title">EZVIZ TV <span>Web</span></h1>
-          <p class="app-subtitle">Visor y Exploración Remota de Seguridad</p>
+  <header>
+    <div class="brand">
+      <img src="icon.png" alt="EZVIZ TV">
+      <h1>EZVIZ TV <span class="badge-web">Web</span></h1>
+    </div>
+    <div class="header-right">
+      <div id="status-bar">Conectado | En vivo 1080p</div>
+      <button id="btn-remote-info" class="tv-btn" style="padding: 6px 14px; font-size: 14px;">
+        🌐 Acceso Remoto
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- SECCIÓN IZQUIERDA: VIDEO + CONTROLES + REGISTROS (IDÉNTICO A LA TV) -->
+    <section id="player-section">
+      <div id="video-container">
+        <video id="main-video" playsinline controls></video>
+        <div class="video-overlay" id="video-overlay">
+          <div class="spinner"></div>
+          <p id="overlay-msg">Conectando señal de video...</p>
+        </div>
+        <div class="live-badge" id="live-badge">EN VIVO</div>
+      </div>
+
+      <!-- BOTONERA DE CONTROLES -->
+      <div id="controls">
+        <button class="tv-btn active-cam" id="btn-cam1" data-action="cam1">[1] Galería (H3c)</button>
+        <button class="tv-btn" id="btn-cam2" data-action="cam2">[2] Living (C3TN)</button>
+        <button class="tv-btn" id="btn-load-records" data-action="load-records">[4] Grabaciones</button>
+        <button class="tv-btn btn-danger" id="btn-stop" data-action="stop">[5] Detener</button>
+        <button class="tv-btn" id="btn-clear" data-action="clear">[6] Limpiar</button>
+        <button class="tv-btn" id="btn-snapshot" data-action="snapshot">📸 Foto HD</button>
+        <button class="tv-btn" id="btn-fullscreen" data-action="fullscreen">⛶ Pantalla Completa</button>
+      </div>
+
+      <!-- BARRA INFERIOR DE REGISTROS DEBAJO DEL VIDEO -->
+      <div id="log-card">
+        <div class="log-card-header">
+          <span class="title">📋 Registro del Sistema (Estado en tiempo real)</span>
+          <span class="shortcut-hint">[CH+/-] Sig/Ant | [6] Limpiar | [5] Detener</span>
+        </div>
+        <div id="log-panel"></div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN DERECHA: SIDEBAR DE GRABACIONES EN 2 COLUMNAS (IDÉNTICO A LA TV) -->
+    <aside id="sidebar">
+      <div id="records-card">
+        <div class="sidebar-title">
+          <span>📼 Grabaciones microSD</span>
+          <span id="records-cam-label" style="font-size: 16px; color: #38bdf8;">Galería</span>
+        </div>
+
+        <div class="date-row">
+          <button class="date-btn active-date" id="btn-date-today" data-days="0">[7] Hoy</button>
+          <button class="date-btn" id="btn-date-yesterday" data-days="1">[8] Ayer</button>
+          <button class="date-btn" id="btn-date-prev" data-days="2">[9] Hace 2 días</button>
+        </div>
+
+        <div class="custom-date-row">
+          <label for="custom-date">📅 Fecha:</label>
+          <input type="date" id="custom-date" class="date-picker-input">
+        </div>
+
+        <div id="records-list">
+          <div style="color: #64748b; text-align: center; margin-top: 50px; font-size: 16px; grid-column: 1 / -1;">
+            Presioná [4] o seleccioná una fecha ([7], [8], [9]) para cargar clips
+          </div>
+        </div>
+
+        <div class="telemetry-bar">
+          <span id="cam-ip">IP: 192.168.0.109</span>
+          <span id="cam-model">Modelo: H3c</span>
+          <span id="cam-online" style="color: #4ade80;">Estado: Online</span>
         </div>
       </div>
-      <div class="header-actions">
-        <div class="status-pill" id="server-status">
-          <span class="status-dot online"></span>
-          <span id="status-text">Conectado</span>
-        </div>
-        <button id="btn-remote-info" class="btn btn-secondary btn-sm" title="Guía de Acceso Remoto">
-          🌐 Acceso Remoto
-        </button>
-      </div>
-    </header>
-
-    <!-- CUERPO PRINCIPAL -->
-    <main class="main-content">
-      <!-- PANEL IZQUIERDO: REPRODUCTOR Y CÁMARAS -->
-      <section class="video-section">
-        <!-- SELECTOR DE CÁMARAS -->
-        <div class="camera-selector" id="camera-buttons">
-          <div class="loading-shimmer" style="padding: 10px; color: #8b949e;">Detectando cámaras...</div>
-        </div>
-
-        <!-- CONTENEDOR DEL REPRODUCTOR -->
-        <div class="player-wrapper">
-          <div class="video-container" id="video-box">
-            <video id="main-video" playsinline controls></video>
-            <div class="video-overlay" id="video-overlay">
-              <div class="spinner"></div>
-              <p id="overlay-msg">Seleccione una cámara para iniciar</p>
-            </div>
-            <div class="live-badge" id="live-badge">EN VIVO</div>
-          </div>
-
-          <!-- CONTROLES RÁPIDOS -->
-          <div class="player-controls">
-            <div class="stream-info">
-              <span id="current-stream-name" class="stream-name">--</span>
-              <span id="stream-meta" class="stream-meta">1080p HLS</span>
-            </div>
-            <div class="control-actions">
-              <button id="btn-snapshot" class="btn btn-action" title="Tomar foto instantánea en alta resolución">
-                📸 Foto HD
-              </button>
-              <button id="btn-fullscreen" class="btn btn-action" title="Pantalla completa">
-                ⛶ Pantalla Completa
-              </button>
-              <button id="btn-stop" class="btn btn-action btn-danger" title="Detener transmisión">
-                ⏹ Detener
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- PANEL DERECHO: GRABACIONES MICROSD -->
-      <aside class="records-sidebar">
-        <div class="sidebar-header">
-          <div class="sidebar-title-group">
-            <h3>📂 Grabaciones microSD</h3>
-            <span class="cam-badge" id="records-cam-name">Galería</span>
-          </div>
-          <div class="date-tabs" id="date-shortcuts">
-            <button class="date-tab active" data-days="0">Hoy</button>
-            <button class="date-tab" data-days="1">Ayer</button>
-            <button class="date-tab" data-days="2">Antier</button>
-          </div>
-          <div class="custom-date-row">
-            <label for="custom-date">Fecha personalizada:</label>
-            <input type="date" id="custom-date" class="date-input">
-          </div>
-        </div>
-
-        <div class="records-container" id="records-list">
-          <div class="empty-state">
-            <p>Seleccione una fecha para ver los eventos grabados en la microSD.</p>
-          </div>
-        </div>
-
-        <div class="cam-info-footer" id="cam-telemetry">
-          <div class="telemetry-item">
-            <span>IP Local:</span> <strong id="cam-ip">--</strong>
-          </div>
-          <div class="telemetry-item">
-            <span>Modelo:</span> <strong id="cam-model">--</strong>
-          </div>
-          <div class="telemetry-item">
-            <span>Estado:</span> <strong id="cam-online">--</strong>
-          </div>
-        </div>
-      </aside>
-    </main>
-  </div>
+    </aside>
+  </main>
 
   <!-- MODAL DE FOTO SNAPSHOT -->
   <div class="modal" id="snapshot-modal">
@@ -120,11 +99,11 @@
         <button class="close-btn" id="close-modal">&times;</button>
       </div>
       <div class="modal-body" id="snapshot-content">
-        <div class="spinner"></div>
+        <div class="spinner" style="margin: 30px auto;"></div>
       </div>
       <div class="modal-footer">
-        <a id="btn-download-snap" href="#" target="_blank" download="ezviz_snapshot.jpg" class="btn btn-primary btn-sm">Descargar Foto</a>
-        <button class="btn btn-secondary btn-sm" id="btn-close-snap">Cerrar</button>
+        <a id="btn-download-snap" href="#" target="_blank" download="ezviz_snapshot.jpg" class="tv-btn" style="text-decoration: none;">Descargar Foto</a>
+        <button class="tv-btn" id="btn-close-snap">Cerrar</button>
       </div>
     </div>
   </div>
@@ -142,23 +121,22 @@
         
         <div class="guide-card">
           <h5>1. Cloudflare Tunnel (Recomendado, 100% Gratis y Seguro)</h5>
-          <p>Te entrega un enlace seguro <code>https://tu-nombre.trycloudflare.com</code> sin abrir puertos en tu router.</p>
-          <pre>cloudflared tunnel --url http://localhost:8080</pre>
+          <p>Doble clic sobre <code>iniciar_acceso_remoto.bat</code>. Te entrega un enlace seguro HTTPS sin abrir puertos en tu router.</p>
         </div>
 
         <div class="guide-card">
           <h5>2. Tailscale (VPN Mesh Privada)</h5>
-          <p>Instalá Tailscale en tu PC y en tu celular. Podrás ingresar usando la IP privada de tu PC desde cualquier conexión 4G/5G en el mundo.</p>
+          <p>Instalá Tailscale en tu PC y celular. Podrás ingresar usando la IP privada de tu PC desde cualquier conexión 4G/5G en el mundo.</p>
         </div>
 
         <div class="guide-card">
           <h5>3. Red Local / Wi-Fi</h5>
           <p>Desde cualquier dispositivo conectado al mismo Wi-Fi, abrí:</p>
-          <pre><span id="lan-url-display">http://192.168.18.29:8080</span></pre>
+          <pre><span id="lan-url-display">http://localhost:8080</span></pre>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-primary btn-sm" id="btn-close-remote">Entendido</button>
+        <button class="tv-btn" id="btn-close-remote">Entendido</button>
       </div>
     </div>
   </div>
