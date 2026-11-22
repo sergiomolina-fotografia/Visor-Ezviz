@@ -8,7 +8,8 @@
 
 **Hitos alcanzados y 100% validados en hardware real (LG 50UP7750PSB webOS 6.0, PC y Móvil):**
 - [x] **Video en directo fluido en 1080p** para ambas cámaras mediante decodificación por hardware nativo (`<video>` con HLS).
-- [x] **Horario real local y tarjetas con miniatura**: Conversión automática de timestamps UTC a la hora real local (UTC-3), cálculo de duración y tarjetas con miniatura gráfica/preview para cada evento de microSD.
+- [x] **Galería de grabaciones en 2 columnas y paginación ilimitada**: Recuperación automática de todas las grabaciones del día (sin tope de 50 de la API, soporta más de 180+ clips diarios) organizadas en cuadrícula de 2 columnas con hora real destacada y navegación 2D en control remoto.
+- [x] **Horario real local y tarjetas con miniatura**: Conversión automática de timestamps UTC a la hora real local (UTC-3), tarjetas con miniatura gráfica/preview para cada evento de microSD y visualización limpia sin saturación de duración.
 - [x] **Barra inferior de Registro del Sistema**: Panel de consola y estado en tiempo real reubicado en una barra inferior debajo del video principal, liberando el 100% del sidebar lateral para las grabaciones.
 - [x] **Web Dashboard para Exploración Remota**: Interfaz web moderna y responsiva servida en el puerto `8080` para PC, Mac, tablets y celulares (iPhone / Android) con `hls.js`.
 - [x] **Captura de Fotos HD instantáneas**: Disparo fotográfico en tiempo real desde los sensores con descarga directa (`/api/cameras/{serial}/snapshot`).

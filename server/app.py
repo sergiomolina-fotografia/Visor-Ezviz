@@ -197,17 +197,37 @@ def list_cameras() -> dict[str, Any]:
 def list_records(
     serial: str,
     date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$", description="Fecha YYYY-MM-DD"),
-    size: int = Query(50, ge=1, le=200),
+    limit: int = Query(500, ge=1, le=1000),
 ) -> dict[str, Any]:
     client = _get_ezviz_client()
-    start_time = f"{date} 00:00:00"
+    all_records: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
+    cur_start = f"{date} 00:00:00"
     stop_time = f"{date} 23:59:59"
-    res = client.search_records(serial, 1, serial, start_time, stop_time, size=size)
+
+    # Paginación automática: EZVIZ API limita a 50 registros por página
+    for _ in range(12):  # Hasta 600 registros
+        res = client.search_records(serial, 1, serial, cur_start, stop_time, size=50)
+        records = res.get("records", [])
+        if not records:
+            break
+        new_added = 0
+        for rec in records:
+            key = rec.get("begin", "")
+            if key and key not in seen_keys:
+                seen_keys.add(key)
+                all_records.append(rec)
+                new_added += 1
+        if res.get("isFinished") == "TRUE" or new_added == 0 or len(all_records) >= limit:
+            break
+        cur_start = records[-1]["end"].replace("T", " ")
+
     return {
         "serial": serial,
         "date": date,
-        "records": res.get("records", []),
-        "isFinished": res.get("isFinished"),
+        "total": len(all_records),
+        "records": all_records,
+        "isFinished": True,
     }
 
 

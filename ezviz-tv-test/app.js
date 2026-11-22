@@ -210,32 +210,26 @@
     appendLog("ok", ["Encontradas " + records.length + " grabaciones (Hora real convertida a tu zona horaria)"]);
     recordItems = [];
 
-    records.forEach(function (rec, index) {
+    // Mostrar las grabaciones más recientes primero (orden descendente)
+    var sortedRecords = records.slice().reverse();
+
+    sortedRecords.forEach(function (rec, index) {
       var item = document.createElement("div");
       item.className = "record-item";
       item.tabIndex = 0;
       
       var localStart = formatRealLocalTime(rec.begin);
       var localEnd = formatRealLocalTime(rec.end);
-      var localDate = formatRealLocalDate(rec.begin);
-      var duration = calculateDuration(rec.begin, rec.end);
-      var utcStart = rec.begin.split("T")[1] || "";
-
-      var tagLabel = rec.type === "ALARM" ? "🚨 MOVIMIENTO" : (rec.type || "CLIP");
+      var isAlarm = rec.type === "ALARM";
 
       item.innerHTML = 
         '<div class="record-thumb">' +
-          '<span class="thumb-tag">' + (rec.type || "REC") + '</span>' +
+          '<span class="thumb-tag">' + (isAlarm ? "ALERTA" : "REC") + '</span>' +
           '<span class="play-icon">▶</span>' +
-          (duration ? '<span class="thumb-dur">' + duration + '</span>' : '') +
         '</div>' +
         '<div class="record-info">' +
-          '<div class="record-time-real">' + localStart + ' ➔ ' + localEnd + '</div>' +
-          '<div class="record-meta-row">' +
-            '<span class="badge-alarm">' + tagLabel + '</span>' +
-            (localDate ? '<span>📅 ' + localDate + '</span>' : '') +
-            '<span class="badge-utc-hint">UTC: ' + utcStart + '</span>' +
-          '</div>' +
+          '<div class="record-time-real">' + localStart + '</div>' +
+          '<div class="record-sub-real">' + localStart + ' a ' + localEnd + '</div>' +
         '</div>';
       
       item.addEventListener("click", function () {
@@ -323,6 +317,11 @@
         else { focusZone = "dates"; focusIdx = 0; }
       } else if (focusZone === "dates") {
         if (focusIdx < dateButtons.length - 1) focusIdx++;
+      } else if (focusZone === "records") {
+        // En cuadrícula de 2 columnas: si está en columna izquierda (par), va a la columna derecha
+        if (focusIdx % 2 === 0 && focusIdx + 1 < recordItems.length) {
+          focusIdx++;
+        }
       }
       updateFocus();
     }
@@ -332,7 +331,14 @@
         if (focusIdx > 0) focusIdx--;
         else { focusZone = "controls"; focusIdx = controlButtons.length - 1; }
       } else if (focusZone === "records") {
-        focusZone = "controls"; focusIdx = 0;
+        // En cuadrícula de 2 columnas: si está en columna derecha (impar), va a la izquierda
+        if (focusIdx % 2 === 1) {
+          focusIdx--;
+        } else {
+          // Si ya está en la columna izquierda, regresa a la botonera principal
+          focusZone = "controls";
+          focusIdx = 2; // [R] Ver Grabaciones
+        }
       } else if (focusZone === "controls") {
         if (focusIdx > 0) focusIdx--;
       }
@@ -343,15 +349,26 @@
       if (focusZone === "dates") {
         if (recordItems.length > 0) { focusZone = "records"; focusIdx = 0; }
       } else if (focusZone === "records") {
-        if (focusIdx < recordItems.length - 1) focusIdx++;
+        // Bajar una fila completa (+2)
+        if (focusIdx + 2 < recordItems.length) {
+          focusIdx += 2;
+        } else if (focusIdx % 2 === 0 && focusIdx + 1 < recordItems.length) {
+          focusIdx += 1; // Si no hay fila siguiente pero hay un elemento impar al lado
+        }
       }
       updateFocus();
     }
     // Flecha ARRIBA (38)
     else if (code === 38) {
       if (focusZone === "records") {
-        if (focusIdx > 0) focusIdx--;
-        else { focusZone = "dates"; focusIdx = 0; }
+        // Subir una fila completa (-2)
+        if (focusIdx >= 2) {
+          focusIdx -= 2;
+        } else {
+          // Si está en la primera fila (0 o 1), sube a la fila de fechas
+          focusZone = "dates";
+          focusIdx = selectedDaysAgo >= 0 && selectedDaysAgo < dateButtons.length ? selectedDaysAgo : 0;
+        }
       }
       updateFocus();
     }
