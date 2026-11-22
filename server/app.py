@@ -97,13 +97,15 @@ def _ensure_hls_stream(serial: str, rtsp_url: str, is_playback: bool = False) ->
     cam_dir.mkdir(parents=True, exist_ok=True)
 
     hls_flags = [] if is_playback else ["-hls_flags", "delete_segments"]
-    hls_list_size = "0" if is_playback else "5"
+    hls_list_size = "0" if is_playback else "10"
+    input_flags = ["-use_wallclock_as_timestamps", "1"] if not is_playback else []
 
     cmd = [
         "ffmpeg",
         "-hide_banner",
         "-loglevel",
         "warning",
+    ] + input_flags + [
         "-fflags",
         "+genpts+discardcorrupt",
         "-rtsp_transport",

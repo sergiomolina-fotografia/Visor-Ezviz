@@ -160,9 +160,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (Hls.isSupported()) {
       hlsPlayer = new Hls({
-        lowLatencyMode: true,
-        liveSyncDurationCount: 3,
         enableWorker: true,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 8,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
       });
 
       hlsPlayer.loadSource(url);
@@ -170,7 +172,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
       hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
         setOverlay(false);
-        mainVideo.play().catch((e) => console.warn("Autoplay bloqueado:", e));
+        const p = mainVideo.play();
+        if (p && typeof p.catch === "function") {
+          p.catch((e) => {
+            console.warn("Autoplay bloqueado con sonido, reintentando silenciado:", e);
+            mainVideo.muted = true;
+            mainVideo.play().catch((err) => console.error("Fallo play():", err));
+          });
+        }
         appendLog("ok", [label, "- Señal HLS establecida"]);
       });
 
