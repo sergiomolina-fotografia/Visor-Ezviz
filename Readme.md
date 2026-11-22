@@ -8,8 +8,10 @@
 
 **Hitos alcanzados y 100% validados en hardware real (LG 50UP7750PSB webOS 6.0, PC y Móvil):**
 - [x] **Video en directo fluido en 1080p** para ambas cámaras mediante decodificación por hardware nativo (`<video>` con HLS).
-- [x] **Galería de grabaciones en 2 columnas y paginación ilimitada**: Recuperación automática de todas las grabaciones del día (sin tope de 50 de la API, soporta más de 180+ clips diarios) organizadas en cuadrícula de 2 columnas con hora real destacada y navegación 2D en control remoto.
-- [x] **Horario real local y tarjetas con miniatura**: Conversión automática de timestamps UTC a la hora real local (UTC-3), tarjetas con miniatura gráfica/preview para cada evento de microSD y visualización limpia sin saturación de duración.
+- [x] **Mapeo de control remoto ágil y ergonómico**: Acceso directo con teclas numéricas (`[1]` Galería, `[2]` Living, `[4]` Grabaciones, `[5]` Detener, `[6]` Limpiar, `[7]` Hoy, `[8]` Ayer, `[9]` Hace 2 días) y salto secuencial de clips con `[CH+]` (más reciente) y `[CH-]` (anterior).
+- [x] **Galería de grabaciones en 2 columnas y paginación ilimitada**: Recuperación automática de todas las grabaciones del día (sin tope de 50 de la API, soporta más de 180+ clips diarios) organizadas en cuadrícula de 2 columnas con navegación 2D en control remoto.
+- [x] **Horario real nativo (Mendoza, Argentina UTC-3)**: Sincronización exacta con el reloj interno de las cámaras sin desfases horarios, tarjetas compactas con miniatura gráfica/preview para cada evento de microSD y visualización limpia sin saturación de duración.
+- [x] **Transcodificación robusta de grabaciones (HEVC/H.265 a HLS)**: Estabilización con `-fflags +genpts+discardcorrupt`, remuxing de audio adaptativo (`-af aresample=async=1000`) y cola extendida para reproducción ininterrumpida de clips microSD.
 - [x] **Barra inferior de Registro del Sistema**: Panel de consola y estado en tiempo real reubicado en una barra inferior debajo del video principal, liberando el 100% del sidebar lateral para las grabaciones.
 - [x] **Web Dashboard para Exploración Remota**: Interfaz web moderna y responsiva servida en el puerto `8080` para PC, Mac, tablets y celulares (iPhone / Android) con `hls.js`.
 - [x] **Captura de Fotos HD instantáneas**: Disparo fotográfico en tiempo real desde los sensores con descarga directa (`/api/cameras/{serial}/snapshot`).
@@ -17,7 +19,6 @@
 - [x] **Cámara Living (`C3TN`)**: En vivo fluido en 1080p por RTSP local y consulta de registros microSD.
 - [x] **Resolución dinámica de IPs**: Detección en tiempo real de la IP de cada cámara por su número de serie en la API de EZVIZ, tolerante a cambios de IP por DHCP.
 - [x] **Identidad visual completa**: Iconos maestros, splash 16:9, favicons y assets empaquetados en la app nativa IPK y en la web.
-- [x] **Explorador de microSD**: Selector de fechas (Hoy, Ayer, Antier o fecha personalizada), consulta de eventos y reproducción directa de clips.
 - [x] **Manejo de errores amigable en pantalla**: Diagnósticos claros en el panel de eventos en caso de desconexiones o limitaciones de formato por modelo de cámara.
 
 ---
@@ -58,6 +59,7 @@ Visor-Ezviz/
 │   ├── test_login.py           # Inicio de sesión inicial con 2FA y volcado de sesión
 │   └── deploy_tv.py            # Despliegue automatizado al televisor LG
 ├── iniciar_servidor.bat        # Script de 1 clic para iniciar servidor y Web en Windows
+├── iniciar_acceso_remoto.bat   # Script de 1 clic para túnel seguro Cloudflare (acceso 4G/remoto)
 └── README.md
 ```
 
@@ -102,8 +104,8 @@ La aplicación de Smart TV está diseñada para ser utilizada con el control rem
 | **Tecla [7]** | Cargar grabaciones de **Hoy** |
 | **Tecla [8]** | Cargar grabaciones de **Ayer** |
 | **Tecla [9]** | Cargar grabaciones de **Hace 2 días** |
-| **Tecla [CH+]** | Siguiente clip de grabación (o alternar cámara en vivo) |
-| **Tecla [CH-]** | Anterior clip de grabación (o alternar cámara en vivo) |
+| **Tecla [CH+]** | Clip siguiente / más reciente (o alternar cámara en vivo) |
+| **Tecla [CH-]** | Clip anterior / más antiguo (o alternar cámara en vivo) |
 | **Flechas ⬅️ ➡️ ⬆️ ⬇️** | Navegar entre controles, selector de fechas y cuadrícula 2D de grabaciones |
 | **Tecla [OK] / Enter** | Seleccionar cámara, cambiar fecha o reproducir el evento elegido |
 | **Tecla [Back]** | Salir limpiamente de la aplicación |
