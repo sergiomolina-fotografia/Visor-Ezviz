@@ -119,8 +119,8 @@ El servidor y la web quedarán disponibles en el puerto `8080`.
 El paquete compilado más reciente se encuentra en `dist/`:
 ```bash
 # Instalación estándar vía CLI de webOS:
-ares-install --device <nombre_tv> dist/com.manuel.ezviztv.test_0.1.2_all.ipk
-ares-launch --device <nombre_tv> com.manuel.ezviztv.test
+ares-install --device <nombre_tv> dist/com.sergio.ezviztv.test_0.1.2_all.ipk
+ares-launch --device <nombre_tv> com.sergio.ezviztv.test
 
 # O mediante el script automático para TVs rooteadas:
 python scripts/deploy_tv.py
