@@ -104,6 +104,8 @@ def _ensure_hls_stream(serial: str, rtsp_url: str, is_playback: bool = False) ->
         "-hide_banner",
         "-loglevel",
         "warning",
+        "-fflags",
+        "+genpts+discardcorrupt",
         "-rtsp_transport",
         "tcp",
         "-i",
@@ -122,6 +124,10 @@ def _ensure_hls_stream(serial: str, rtsp_url: str, is_playback: bool = False) ->
         "aac",
         "-ar",
         "44100",
+        "-af",
+        "aresample=async=1000",
+        "-max_muxing_queue_size",
+        "1024",
         "-f",
         "hls",
         "-hls_time",
@@ -148,7 +154,9 @@ def _ensure_hls_stream(serial: str, rtsp_url: str, is_playback: bool = False) ->
         if proc.poll() is not None:
             log_file.close()
             err = (cam_dir / "ffmpeg.log").read_text(encoding="utf-8", errors="replace")
-            raise HTTPException(status_code=502, detail=f"ffmpeg finalizó: {err[:300]}")
+            err_lines = [l for l in err.splitlines() if l.strip()]
+            err_detail = " | ".join(err_lines[-3:]) if err_lines else "Sin mensaje de error"
+            raise HTTPException(status_code=502, detail=f"ffmpeg finalizó: {err_detail[:300]}")
         time.sleep(0.25)
 
     raise HTTPException(status_code=504, detail="Timeout esperando segmentos HLS de ffmpeg")

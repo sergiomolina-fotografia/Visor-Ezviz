@@ -247,39 +247,35 @@ document.addEventListener("DOMContentLoaded", () => {
       const card = document.createElement("div");
       card.className = "record-card";
 
-      const parseUtc = (s) => {
-        if (!s) return null;
-        const iso = s.endsWith("Z") ? s : s + "Z";
-        const d = new Date(iso);
-        return isNaN(d.getTime()) ? null : d;
-      };
-
       const formatTime = (s) => {
-        const d = parseUtc(s);
-        if (!d) return s.split("T")[1] || s;
-        return [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, "0")).join(":");
+        if (!s) return "";
+        const t = s.includes("T") ? s.split("T")[1] : (s.includes(" ") ? s.split(" ")[1] : s);
+        return t.replace("Z", "").slice(0, 8);
       };
 
       const localStart = formatTime(rec.begin);
       const localEnd = formatTime(rec.end);
-      const utcStart = rec.begin.split("T")[1] || "";
 
       let durationText = "";
-      const bDate = parseUtc(rec.begin);
-      const eDate = parseUtc(rec.end);
-      if (bDate && eDate) {
-        const sec = Math.round((eDate.getTime() - bDate.getTime()) / 1000);
-        if (sec > 0) {
-          const m = Math.floor(sec / 60);
-          const s = sec % 60;
-          durationText = m > 0 ? `${m}m ${String(s).padStart(2, "0")}s` : `${s}s`;
+      if (rec.begin && rec.end) {
+        const bParts = rec.begin.replace("T", " ").split(/[- :]/);
+        const eParts = rec.end.replace("T", " ").split(/[- :]/);
+        if (bParts.length >= 6 && eParts.length >= 6) {
+          const bDate = new Date(bParts[0], bParts[1] - 1, bParts[2], bParts[3], bParts[4], bParts[5]);
+          const eDate = new Date(eParts[0], eParts[1] - 1, eParts[2], eParts[3], eParts[4], eParts[5]);
+          const sec = Math.round((eDate.getTime() - bDate.getTime()) / 1000);
+          if (sec > 0) {
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            durationText = m > 0 ? `${m}m ${String(s).padStart(2, "0")}s` : `${s}s`;
+          }
         }
       }
 
       card.innerHTML = `
         <div class="record-time">
           <span class="record-hour">🕒 ${localStart} ➔ ${localEnd}</span>
-          <span class="record-sub">${durationText ? `⏱️ ${durationText} | ` : ""}Hora real local (UTC: ${utcStart})</span>
+          <span class="record-sub">${durationText ? `⏱️ ${durationText} | ` : ""}Hora Mendoza</span>
         </div>
         <span class="record-tag">${rec.type || "CLIP"}</span>
       `;

@@ -133,35 +133,20 @@
     return n < 10 ? "0" + n : "" + n;
   }
 
-  function parseUtcDate(isoStr) {
-    if (!isoStr) return null;
-    var s = isoStr.endsWith("Z") ? isoStr : (isoStr + "Z");
-    var d = new Date(s);
-    return isNaN(d.getTime()) ? null : d;
-  }
-
   function formatRealLocalTime(isoStr) {
-    var d = parseUtcDate(isoStr);
-    if (!d) return isoStr.split("T")[1] || isoStr;
-    return pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds());
+    if (!isoStr) return "";
+    var t = isoStr.indexOf("T") !== -1 ? isoStr.split("T")[1] : (isoStr.indexOf(" ") !== -1 ? isoStr.split(" ")[1] : isoStr);
+    return t.replace("Z", "").slice(0, 8);
   }
 
   function formatRealLocalDate(isoStr) {
-    var d = parseUtcDate(isoStr);
-    if (!d) return "";
-    return pad2(d.getDate()) + "/" + pad2(d.getMonth() + 1);
-  }
-
-  function calculateDuration(beginStr, endStr) {
-    var b = parseUtcDate(beginStr);
-    var e = parseUtcDate(endStr);
-    if (!b || !e) return "";
-    var sec = Math.round((e.getTime() - b.getTime()) / 1000);
-    if (sec <= 0) return "";
-    var m = Math.floor(sec / 60);
-    var s = sec % 60;
-    if (m > 0) return m + "m " + (s < 10 ? "0" + s : s) + "s";
-    return s + "s";
+    if (!isoStr) return "";
+    var datePart = isoStr.split("T")[0] || isoStr.split(" ")[0] || "";
+    var parts = datePart.split("-");
+    if (parts.length === 3) {
+      return parts[2] + "/" + parts[1];
+    }
+    return datePart;
   }
 
   function getDateString(daysAgo) {
@@ -207,7 +192,7 @@
       return;
     }
 
-    appendLog("ok", ["Encontradas " + records.length + " grabaciones (Hora real convertida a tu zona horaria)"]);
+    appendLog("ok", ["Encontradas " + records.length + " grabaciones (Hora Mendoza UTC-3)"]);
     recordItems = [];
 
     // Mostrar las grabaciones más recientes primero (orden descendente)
@@ -229,7 +214,7 @@
         '</div>' +
         '<div class="record-info">' +
           '<div class="record-time-real">' + localStart + '</div>' +
-          '<div class="record-sub-real">' + localStart + ' a ' + localEnd + '</div>' +
+          '<div class="record-sub-real">' + localStart.slice(0, 5) + ' a ' + localEnd.slice(0, 5) + '</div>' +
         '</div>';
       
       item.addEventListener("click", function () {
@@ -249,8 +234,7 @@
   function playRecordClip(rec, localStart, localEnd) {
     var lStart = localStart || formatRealLocalTime(rec.begin);
     var lEnd = localEnd || formatRealLocalTime(rec.end);
-    var utcStart = rec.begin.split("T")[1] || rec.begin;
-    appendLog("ok", ["Reproduciendo grabación: " + lStart + " a " + lEnd + " (Hora real) [UTC: " + utcStart + "]"]);
+    appendLog("ok", ["Reproduciendo grabación: " + lStart + " a " + lEnd + " (Hora Mendoza)"]);
     var b = rec.begin.replace(/[-:]/g, "");
     if (!b.endsWith("Z")) b += "Z";
     var e = rec.end.replace(/[-:]/g, "");
