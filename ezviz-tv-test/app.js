@@ -275,14 +275,14 @@
     else if (action === "clear") { logPanel.innerHTML = ""; appendLog("ok", ["Registro limpiado"]); }
   }
 
-  function handleNext() {
+  function goChannelUp() {
     if (recordItems && recordItems.length > 0) {
       focusZone = "records";
-      if (focusIdx < recordItems.length - 1) {
-        focusIdx++;
+      if (focusIdx > 0) {
+        focusIdx--;
       }
       updateFocus();
-      appendLog("info", ["Clip siguiente (" + (focusIdx + 1) + "/" + recordItems.length + ")"]);
+      appendLog("info", ["CH+ Siguiente clip (" + (focusIdx + 1) + "/" + recordItems.length + ")"]);
       if (recordItems[focusIdx]) recordItems[focusIdx].click();
     } else {
       if (currentCam === CONFIG.cam1Serial) {
@@ -293,14 +293,14 @@
     }
   }
 
-  function handlePrev() {
+  function goChannelDown() {
     if (recordItems && recordItems.length > 0) {
       focusZone = "records";
-      if (focusIdx > 0) {
-        focusIdx--;
+      if (focusIdx < recordItems.length - 1) {
+        focusIdx++;
       }
       updateFocus();
-      appendLog("info", ["Clip anterior (" + (focusIdx + 1) + "/" + recordItems.length + ")"]);
+      appendLog("info", ["CH- Anterior clip (" + (focusIdx + 1) + "/" + recordItems.length + ")"]);
       if (recordItems[focusIdx]) recordItems[focusIdx].click();
     } else {
       if (currentCam === CONFIG.cam2Serial) {
@@ -323,8 +323,8 @@
     if (code === 55) { loadRecords(0); return; }                                     // [7] Hoy
     if (code === 56) { loadRecords(1); return; }                                     // [8] Ayer
     if (code === 57) { loadRecords(2); return; }                                     // [9] Hace dos días
-    if (code === 33 || code === 427 || ev.key === "ChannelUp") { handleNext(); return; } // [CH+] Siguiente
-    if (code === 34 || code === 428 || ev.key === "ChannelDown") { handlePrev(); return; } // [CH-] Anterior
+    if (code === 33 || code === 427 || ev.key === "ChannelUp") { goChannelUp(); return; }   // [CH+] Siguiente
+    if (code === 34 || code === 428 || ev.key === "ChannelDown") { goChannelDown(); return; } // [CH-] Anterior
 
     // Tecla BACK de webOS (461) o Escape
     if (code === 461 || code === 27) {
